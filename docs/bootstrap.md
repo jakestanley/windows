@@ -74,16 +74,24 @@ external credential lookup.
 
 ## Run
 
-Two playbooks. The bootstrap is WinRM-as-`ansible`, the desktop apps
-playbook is SSH-as-`mail` (see `docs/unattended.md` for the one-time
-SSH transport bootstrap).
+Two transports, run in order. The first two commands are WinRM-as-`ansible`;
+the last is SSH-as-`mail` and requires the SSH transport to have been
+set up first (`shrike-ssh-bootstrap.yml` does that, idempotently — safe
+to re-run, no-op after the first success).
 
 ```sh
 cd ansible
-ansible -m win_ping windows --ask-pass             # connectivity smoke test
-ansible-playbook playbooks/shrike-bootstrap.yml --ask-pass     # config baseline
-ansible-playbook playbooks/shrike-desktop-apps.yml             # winget desktop apps
+ansible -m win_ping windows --ask-pass                           # connectivity smoke test
+ansible-playbook playbooks/shrike-bootstrap.yml --ask-pass       # config baseline
+ansible-playbook playbooks/shrike-ssh-bootstrap.yml --ask-pass   # one-time: OpenSSH + key
+ansible-playbook playbooks/shrike-desktop-apps.yml               # winget desktop apps
 ```
+
+The SSH bootstrap publishes your controller's `~/.ssh/id_ed25519.pub`
+into shrike's `administrators_authorized_keys`. Generate a keypair
+first if you don't have one (`ssh-keygen -t ed25519`). See
+`docs/unattended.md` for the full transport rationale and verification
+steps.
 
 ## What the bootstrap playbook does
 
