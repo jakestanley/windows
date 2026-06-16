@@ -82,9 +82,11 @@ ansible-playbook playbooks/shrike-bootstrap.yml --ask-pass
 
 ## What the playbook does
 
-1. **common** — host networking baseline: WoL prep (Fast Startup off,
-   magic-packet on NICs), inbound ICMPv4 echo, NTP via `w32time`, and
-   Sleep-on-LAN installed as an NSSM service.
+1. **common** — host baseline: telemetry / search services disabled
+   (`WSearch`, `DiagTrack`, `dmwappushservice`), networking block (Fast
+   Startup off, ICMPv4 echo, NTP via `w32time`, NIC magic-packet on,
+   Sleep-on-LAN NSSM service), Bing / Cortana registry tweaks,
+   D:\Downloads + D:\Videos folder relocation.
 2. **services** — clones `homelab-rtx`, `homelab-demucs`, `homelab-ollama`
    under `C:\homelab\`, seeds `.env` from `.env.example` on first clone, runs
    each repo's `scripts/up.ps1` to install the NSSM services.
@@ -132,7 +134,10 @@ The playbook is idempotent. Re-run any time to converge state.
 
 | Tag | Tasks |
 |---|---|
+| `services-disable` | Stop and disable `WSearch`, `DiagTrack`, `dmwappushservice`. |
 | `networking` | Fast Startup off, ICMPv4 echo allowed, NTP configured, NIC magic-packet on, Sleep-on-LAN installed. |
+| `registry` | Bing / Cortana search off. |
+| `folders` | D:\Downloads / D:\Videos relocation. |
 | `services` | Choco prereqs (git, python312, nssm, ffmpeg, ollama), Ollama NSSM wrapper, clone + pull + seed `.env`, run each repo's `up.ps1`. |
 | `clone` | Clone + pull + seed only (no `up.ps1`). |
 | `up` | Pull latest + re-run each repo's `up.ps1`. |

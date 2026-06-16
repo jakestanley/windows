@@ -1,4 +1,15 @@
 ---
+- name: Disable telemetry and search services
+  ansible.windows.win_service:
+    name: "{{ item }}"
+    state: stopped
+    start_mode: disabled
+  loop:
+    - WSearch
+    - DiagTrack
+    - dmwappushservice
+  tags: [services-disable]
+
 - name: Disable Fast Startup so Wake-on-LAN works after shutdown
   ansible.windows.win_regedit:
     path: HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power
@@ -61,3 +72,44 @@
 - name: Install Sleep-on-LAN
   ansible.builtin.import_tasks: sleep-on-lan.yml
   tags: [networking]
+
+- name: Disable Bing search in Start menu
+  ansible.windows.win_regedit:
+    path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Search
+    name: BingSearchEnabled
+    data: 0
+    type: dword
+  tags: [registry]
+
+- name: Disable Cortana web search consent
+  ansible.windows.win_regedit:
+    path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Search
+    name: CortanaConsent
+    data: 0
+    type: dword
+  tags: [registry]
+
+- name: Ensure relocated user folders exist on D:\
+  ansible.windows.win_file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - D:\Downloads
+    - D:\Videos
+  tags: [folders]
+
+- name: Relocate Downloads to D:\Downloads
+  ansible.windows.win_regedit:
+    path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders
+    name: "{374DE290-123F-4565-9164-39C4925E467B}"
+    data: D:\Downloads
+    type: expandstring
+  tags: [folders]
+
+- name: Relocate Videos to D:\Videos
+  ansible.windows.win_regedit:
+    path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders
+    name: "My Video"
+    data: D:\Videos
+    type: expandstring
+  tags: [folders]
