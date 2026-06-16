@@ -136,7 +136,7 @@ The playbook is idempotent. Re-run any time to converge state.
 |---|---|
 | `services-disable` | Stop and disable `WSearch`, `DiagTrack`, `dmwappushservice`. |
 | `networking` | Fast Startup off, ICMPv4 echo allowed, NTP configured, NIC magic-packet on, Sleep-on-LAN installed. |
-| `registry` | Bing / Cortana search off. |
+| `registry` | Bing / Cortana search off, classic Win11 right-click context menu. |
 | `folders` | D:\Downloads / D:\Videos relocation. |
 | `services` | Choco prereqs (git, python312, nssm, ffmpeg, ollama), Ollama NSSM wrapper, clone + pull + seed `.env`, run each repo's `up.ps1`. |
 | `clone` | Clone + pull + seed only (no `up.ps1`). |

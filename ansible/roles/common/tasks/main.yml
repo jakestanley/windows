@@ -89,6 +89,21 @@
     type: dword
   tags: [registry]
 
+- name: Restore classic right-click context menu (Windows 11)
+  ansible.windows.win_regedit:
+    path: HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32
+    name: "(default)"
+    data: ""
+    type: string
+  register: classic_context_menu
+  tags: [registry]
+
+- name: Restart Explorer to apply classic context menu
+  ansible.windows.win_shell: |
+    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+  when: classic_context_menu.changed
+  tags: [registry]
+
 - name: Ensure relocated user folders exist on D:\
   ansible.windows.win_file:
     path: "{{ item }}"
