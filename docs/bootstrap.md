@@ -82,12 +82,16 @@ ansible-playbook playbooks/shrike-bootstrap.yml --ask-pass
 
 ## What the playbook does
 
-1. **common** — host baseline: telemetry / search services disabled
-   (`WSearch`, `DiagTrack`, `dmwappushservice`), networking block (Fast
-   Startup off, ICMPv4 echo, NTP via `w32time`, NIC magic-packet on,
-   Sleep-on-LAN NSSM service), Bing / Cortana registry tweaks,
-   D:\Downloads + D:\Videos folder relocation.
-2. **services** — clones `homelab-rtx`, `homelab-demucs`, `homelab-ollama`
+1. **common** — host baseline: desktop packages via winget, bloatware
+   removal via winget, NVIDIA driver auto-update via
+   TinyNvidiaUpdateChecker, telemetry off, registry tweaks (Bing/Cortana
+   off, classic Win11 right-click context menu), D:\ folder relocation,
+   and the networking block (WoL prep, ICMPv4 echo, NTP, Sleep-on-LAN
+   NSSM service). Unattended boot is configured manually; see
+   `docs/unattended.md`.
+2. **gaming** — Steam Remote Play registry + firewall (UDP 27031-27036).
+   *Unreviewed; see `docs/gaming.md`.*
+3. **services** — clones `homelab-rtx`, `homelab-demucs`, `homelab-ollama`
    under `C:\homelab\`, seeds `.env` from `.env.example` on first clone, runs
    each repo's `scripts/up.ps1` to install the NSSM services.
 
@@ -114,12 +118,9 @@ w32tm /query /status
 ```
 
 `Stratum: 0` and `Leap Indicator: 3 (not synchronized)` mean NTP isn't
-running. The `networking` role configures NTP (Cloudflare + uk.pool.ntp.org)
-and forces a resync. Re-run:
-
-```sh
-ansible-playbook playbooks/shrike-bootstrap.yml --tags networking --ask-pass
-```
+running. The `common` role's networking block configures NTP (Cloudflare
++ uk.pool.ntp.org) and forces a resync. Re-run the playbook (or use
+`--start-at-task "Configure NTP peers and force resync"`).
 
 After: stratum should be 2-3 and Source should name a peer. New samples
 written by services from that point on are correctly timestamped; older
@@ -128,28 +129,14 @@ let new data accumulate).
 
 ## Re-running
 
-The playbook is idempotent. Re-run any time to converge state.
-
-### Running a slice with tags
-
-| Tag | Tasks |
-|---|---|
-| `services-disable` | Stop and disable `WSearch`, `DiagTrack`, `dmwappushservice`. |
-| `networking` | Fast Startup off, ICMPv4 echo allowed, NTP configured, NIC magic-packet on, Sleep-on-LAN installed. |
-| `registry` | Bing / Cortana search off, classic Win11 right-click context menu. |
-| `folders` | D:\Downloads / D:\Videos relocation. |
-| `services` | Choco prereqs (git, python312, nssm, ffmpeg, ollama), Ollama NSSM wrapper, clone + pull + seed `.env`, run each repo's `up.ps1`. |
-| `clone` | Clone + pull + seed only (no `up.ps1`). |
-| `up` | Pull latest + re-run each repo's `up.ps1`. |
+The playbook is idempotent. Re-run any time to converge state — no slicing
+needed. If you want to re-run from a particular task without doing the
+earlier ones, use `--start-at-task "<task name>"`:
 
 ```sh
-ansible-playbook playbooks/shrike-bootstrap.yml --tags networking --ask-pass
-ansible-playbook playbooks/shrike-bootstrap.yml --tags up --ask-pass
-```
-
-See all defined tags / tasks:
-
-```sh
-ansible-playbook playbooks/shrike-bootstrap.yml --list-tags
 ansible-playbook playbooks/shrike-bootstrap.yml --list-tasks
+ansible-playbook playbooks/shrike-bootstrap.yml --start-at-task "Configure NTP peers and force resync" --ask-pass
 ```
+
+Task-level tags have been removed deliberately — see the roadmap in the
+top-level `README.md` for candidate slices to reintroduce when needed.

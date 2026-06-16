@@ -1,4 +1,97 @@
 ---
+# community.windows.win_winget does not exist yet (tracked as community.windows#611);
+# install / uninstall are driven through win_powershell wrappers around winget.exe.
+
+- name: Install desktop packages via winget
+  ansible.windows.win_powershell:
+    script: |
+      $packages = @(
+        @{ id = 'Valve.Steam';                          source = 'winget' },
+        @{ id = 'Mozilla.Firefox';                      source = 'winget' },
+        @{ id = 'Discord.Discord';                      source = 'winget' },
+        @{ id = 'Dropbox.Dropbox';                      source = 'winget' },
+        @{ id = 'AgileBits.1Password';                  source = 'winget' },
+        @{ id = 'Obsidian.Obsidian';                    source = 'winget' },
+        @{ id = 'Microsoft.Git';                        source = 'winget' },
+        @{ id = 'Hawaii_Beach.TinyNvidiaUpdateChecker'; source = 'winget' },
+        @{ id = 'ImageMagick.Q16';                      source = 'winget' },
+        @{ id = 'Microsoft.GamingApp';                  source = 'winget' },  # Xbox app
+        @{ id = '9NKSQGP7F2NH';                         source = 'msstore' }  # WhatsApp
+      )
+      $changed = @()
+      $alreadyOk = @()
+      foreach ($p in $packages) {
+        $out = & winget install --exact --id $p.id --source $p.source `
+            --silent --accept-source-agreements --accept-package-agreements 2>&1 | Out-String
+        $rc = $LASTEXITCODE
+        # winget returns -1978335189 (0x8A15002B) when the package is already
+        # installed; treat that as a no-op rather than a failure.
+        if ($rc -eq 0) {
+          $changed += $p.id
+        } elseif ($rc -eq -1978335189 -or $out -match 'already installed') {
+          $alreadyOk += $p.id
+        } else {
+          throw "winget install $($p.id) failed (rc=$rc): $out"
+        }
+      }
+      $Ansible.Changed = $changed.Count -gt 0
+      $Ansible.Result  = @{ installed = $changed; already_present = $alreadyOk }
+
+- name: Check and install NVIDIA driver updates via TinyNvidiaUpdateChecker
+  ansible.windows.win_powershell:
+    script: |
+      $exe = (Get-Command TinyNvidiaUpdateChecker.exe -ErrorAction SilentlyContinue).Source
+      if (-not $exe) { throw "TinyNvidiaUpdateChecker.exe not on PATH; ensure winget install step has run." }
+      # --quiet: no nag when up to date
+      # --noprompt: do not prompt to exit
+      # --confirm-dl: download and install without any user interaction
+      $out = & $exe --quiet --noprompt --confirm-dl 2>&1 | Out-String
+      $rc = $LASTEXITCODE
+      if ($rc -ne 0) { throw "TinyNvidiaUpdateChecker exited $rc: $out" }
+      $Ansible.Changed = ($out -match 'Downloading|Installing|Update available')
+      $Ansible.Result  = @{ output_tail = ($out -split "`n" | Select-Object -Last 10) -join "`n" }
+
+- name: Remove default Microsoft bloatware via winget
+  ansible.windows.win_powershell:
+    script: |
+      $names = @(
+        'Microsoft OneDrive',
+        'Outlook',
+        'Mail and Calendar',
+        'Weather',
+        'News',
+        'Get Help',
+        'Microsoft Teams',
+        'Feedback Hub',
+        'Windows Camera',
+        'Power Automate',
+        'Microsoft Sticky Notes',
+        'Paint',
+        'Microsoft Clipchamp',
+        'Microsoft To Do',
+        'Microsoft Photos',
+        'Microsoft Family',
+        'Windows Media Player'
+      )
+      $removed = @()
+      $absent  = @()
+      foreach ($n in $names) {
+        $out = & winget uninstall --exact --name $n --silent `
+            --accept-source-agreements 2>&1 | Out-String
+        $rc = $LASTEXITCODE
+        # 0x8A150014 (-1978335212) = no installed package found
+        if ($rc -eq 0) {
+          $removed += $n
+        } elseif ($rc -eq -1978335212 -or $out -match 'No installed package found') {
+          $absent += $n
+        } else {
+          # don't fail the play on individual stubborn entries
+          $absent += "$n (rc=$rc)"
+        }
+      }
+      $Ansible.Changed = $removed.Count -gt 0
+      $Ansible.Result  = @{ removed = $removed; not_installed = $absent }
+
 - name: Disable telemetry and search services
   ansible.windows.win_service:
     name: "{{ item }}"
@@ -8,7 +101,6 @@
     - WSearch
     - DiagTrack
     - dmwappushservice
-  tags: [services-disable]
 
 - name: Disable Fast Startup so Wake-on-LAN works after shutdown
   ansible.windows.win_regedit:
@@ -16,7 +108,6 @@
     name: HiberbootEnabled
     data: 0
     type: dword
-  tags: [networking]
 
 - name: Allow inbound ICMPv4 echo (ping)
   community.windows.win_firewall_rule:
@@ -28,14 +119,12 @@
       - "8:*"
     enabled: true
     profiles: [domain, private]
-  tags: [networking]
 
 - name: Ensure w32time service is auto-started
   ansible.windows.win_service:
     name: w32time
     state: started
     start_mode: auto
-  tags: [networking]
 
 - name: Configure NTP peers and force resync
   ansible.windows.win_powershell:
@@ -51,7 +140,6 @@
       } else {
         $Ansible.Changed = $false
       }
-  tags: [networking]
 
 - name: Enable Wake-on-Magic-Packet on active NICs
   ansible.windows.win_powershell:
@@ -67,11 +155,9 @@
         } catch {}
       }
       $Ansible.Changed = $changed
-  tags: [networking]
 
 - name: Install Sleep-on-LAN
   ansible.builtin.import_tasks: sleep-on-lan.yml
-  tags: [networking]
 
 - name: Disable Bing search in Start menu
   ansible.windows.win_regedit:
@@ -79,7 +165,6 @@
     name: BingSearchEnabled
     data: 0
     type: dword
-  tags: [registry]
 
 - name: Disable Cortana web search consent
   ansible.windows.win_regedit:
@@ -87,7 +172,6 @@
     name: CortanaConsent
     data: 0
     type: dword
-  tags: [registry]
 
 - name: Restore classic right-click context menu (Windows 11)
   ansible.windows.win_regedit:
@@ -96,13 +180,11 @@
     data: ""
     type: string
   register: classic_context_menu
-  tags: [registry]
 
 - name: Restart Explorer to apply classic context menu
   ansible.windows.win_shell: |
     Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
   when: classic_context_menu.changed
-  tags: [registry]
 
 - name: Ensure relocated user folders exist on D:\
   ansible.windows.win_file:
@@ -111,7 +193,6 @@
   loop:
     - D:\Downloads
     - D:\Videos
-  tags: [folders]
 
 - name: Relocate Downloads to D:\Downloads
   ansible.windows.win_regedit:
@@ -119,7 +200,6 @@
     name: "{374DE290-123F-4565-9164-39C4925E467B}"
     data: D:\Downloads
     type: expandstring
-  tags: [folders]
 
 - name: Relocate Videos to D:\Videos
   ansible.windows.win_regedit:
@@ -127,4 +207,3 @@
     name: "My Video"
     data: D:\Videos
     type: expandstring
-  tags: [folders]

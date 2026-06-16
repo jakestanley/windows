@@ -1,0 +1,22 @@
+---
+- name: Enable Steam Remote Play
+  ansible.windows.win_regedit:
+    path: HKCU:\Software\Valve\Steam
+    name: EnableRemotePlay
+    data: 1
+    type: dword
+- name: Set Steam Remote Play port range
+  ansible.windows.win_regedit:
+    path: HKCU:\Software\Valve\Steam\Streaming
+    name: ServerPortStart
+    data: 27031
+    type: dword
+- name: Allow Steam Remote Play (UDP 27031-27036)
+  community.windows.win_firewall_rule:
+    name: Steam Remote Play
+    localport: 27031-27036
+    protocol: UDP
+    direction: in
+    action: allow
+    enabled: true
+    profiles: [domain, private]

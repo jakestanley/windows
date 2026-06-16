@@ -3,31 +3,26 @@
   chocolatey.chocolatey.win_chocolatey:
     name: git.portable
     state: present
-  tags: [services]
 
 - name: Ensure Python 3.12 is installed (PyTorch CUDA wheels stop at cp312)
   chocolatey.chocolatey.win_chocolatey:
     name: python312
     state: present
-  tags: [services]
 
 - name: Ensure NSSM is installed
   chocolatey.chocolatey.win_chocolatey:
     name: nssm
     state: present
-  tags: [services]
 
 - name: Ensure ffmpeg is installed (demucs MP3 decoding)
   chocolatey.chocolatey.win_chocolatey:
     name: ffmpeg
     state: present
-  tags: [services]
 
 - name: Ensure Ollama runtime is installed
   chocolatey.chocolatey.win_chocolatey:
     name: ollama
     state: present
-  tags: [services]
 
 - name: Register Ollama runtime as an NSSM service
   ansible.windows.win_powershell:
@@ -54,27 +49,23 @@
       if (-not (Get-Service -Name ollama -ErrorAction SilentlyContinue)) {
         throw "ollama service was not registered"
       }
-  tags: [services]
 
 - name: Ensure Ollama service is started
   ansible.windows.win_service:
     name: ollama
     state: started
     start_mode: auto
-  tags: [services]
 
 - name: Ensure services source directory exists
   ansible.windows.win_file:
     path: "{{ services_root }}"
     state: directory
-  tags: [services, clone]
 
 - name: Clone homelab service repositories
   ansible.windows.win_command:
     cmd: git clone {{ item.url }} {{ services_root }}\{{ item.name }}
     creates: "{{ services_root }}\\{{ item.name }}\\.git"
   loop: "{{ homelab_services }}"
-  tags: [services, clone]
 
 - name: Fast-forward existing service repositories
   ansible.windows.win_command:
@@ -83,7 +74,6 @@
   loop: "{{ homelab_services }}"
   register: git_pull
   changed_when: "'Already up to date.' not in (git_pull.stdout | default(''))"
-  tags: [services, clone, up]
 
 - name: Seed .env from .env.example with detected interpreter paths
   ansible.windows.win_powershell:
@@ -129,11 +119,9 @@
       $Ansible.Changed = $true
       $Ansible.Result  = @{ python = $python; ollama = $ollama }
   loop: "{{ homelab_services }}"
-  tags: [services, clone]
 
 - name: Install or update NSSM services via each repo's up.ps1
   ansible.windows.win_shell: .\scripts\up.ps1
   args:
     chdir: "{{ services_root }}\\{{ item.name }}"
   loop: "{{ homelab_services }}"
-  tags: [services, up]
