@@ -104,15 +104,8 @@ setting that breaks WinRM/NTLM is invisible to SSH keys.
 
 ### One-time setup
 
-#### On the controller
-
-Generate a dedicated key for shrike:
-
-```sh
-ssh-keygen -t ed25519 -f ~/.ssh/shrike_ed25519 -C "ansible-controller@shrike"
-```
-
-#### On shrike (Ansible-driven, runs over the existing WinRM connection)
+Uses your existing controller ed25519 keypair at `~/.ssh/id_ed25519`.
+No new key is generated. From the controller:
 
 ```sh
 nix-shell
@@ -121,18 +114,18 @@ ansible-playbook playbooks/shrike-ssh-bootstrap.yml --ask-pass
 ```
 
 The playbook installs OpenSSH Server, opens the firewall, sets
-PowerShell as the default shell, writes the controller's public key
-into `C:\ProgramData\ssh\administrators_authorized_keys` (the file
-sshd uses for admin-group users — `mail` is one), and applies the
-strict ACLs sshd requires.
+PowerShell as the default shell, writes your public key into
+`C:\ProgramData\ssh\administrators_authorized_keys` (the file sshd
+uses for admin-group users — `mail` is one), and applies the strict
+ACLs sshd requires.
 
-Pass `-e ssh_public_key_path=/some/other/path.pub` if your key lives
-somewhere other than `~/.ssh/shrike_ed25519.pub`.
+Pass `-e ssh_public_key_path=/some/other/path.pub` if you want to
+publish a different key.
 
 ### Verify
 
 ```sh
-ssh -i ~/.ssh/shrike_ed25519 mail@shrike.stanley.arpa whoami
+ssh mail@shrike.stanley.arpa whoami
 # expect: mail
 ```
 

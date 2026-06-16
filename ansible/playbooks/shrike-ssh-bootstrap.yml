@@ -6,14 +6,14 @@
 # winget-over-ansible work can run via the SSH transport instead of
 # WinRM. See docs/unattended.md "SSH transport for desktop apps".
 #
-# Prerequisite: an SSH keypair at ~/.ssh/shrike_ed25519{,.pub} on the
-# controller. Override the path with -e ssh_public_key_path=... if
-# yours lives elsewhere.
+# Prerequisite: an SSH keypair at ~/.ssh/id_ed25519{,.pub} on the
+# controller (the default macOS / Linux ed25519 location). Override
+# with -e ssh_public_key_path=... if yours lives elsewhere.
 - name: shrike — SSH transport bootstrap
   hosts: windows
   gather_facts: false
   vars:
-    ssh_public_key_path: "{{ lookup('env', 'HOME') }}/.ssh/shrike_ed25519.pub"
+    ssh_public_key_path: "{{ lookup('env', 'HOME') }}/.ssh/id_ed25519.pub"
     controller_public_key: "{{ lookup('file', ssh_public_key_path) }}"
   tasks:
     - name: Install OpenSSH Server capability
