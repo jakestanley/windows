@@ -52,10 +52,10 @@ Some things on this host are handled outside Ansible by design:
   **not** automated. winget over WinRM hits a WindowsApps ACL deny (the
   `ansible` local admin has never logged in interactively, so
   `Microsoft.DesktopAppInstaller` is not provisioned for it), and
-  Chocolatey duplicates anything already installed via winget. Install
-  these once with `winget` from an interactive PowerShell session on
-  the host — see the planned `scripts/install-desktop-apps.ps1`
-  Roadmap entry.
+  Chocolatey duplicates anything already installed via winget. Run
+  `scripts/install-desktop-apps.ps1` interactively on shrike — the
+  canonical list lives there; the script is idempotent. See `AGENTS.md`
+  for how to add or remove entries.
 - **NVIDIA driver updates** — same WinRM/AppX boundary as above; the
   TinyNvidiaUpdateChecker binary installed by winget is unreachable
   from the playbook. Run manually from shrike; see
@@ -92,15 +92,6 @@ The `services` role uses Chocolatey for `git.portable`, `python312`,
 nor choco for end-user apps (see Platform limitations). Worth flattening
 to a single manager on the next clean rebuild — preference still being
 worked out.
-
-### Ship `scripts/install-desktop-apps.ps1`
-
-Companion to the desktop-apps platform limitation above. A PowerShell
-script in this repo that the user runs interactively on shrike after a
-fresh install: contains the canonical winget package list (Steam,
-Firefox, Discord, Dropbox, 1Password, Obsidian, ImageMagick, etc.),
-idempotent, no Ansible involvement. Not automation — just keeps the
-canonical list version-controlled in the canonical source of truth.
 
 ### Move the WinRM password out of `--ask-pass`
 
