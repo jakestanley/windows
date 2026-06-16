@@ -93,8 +93,3 @@ nor choco for end-user apps (see Platform limitations). Worth flattening
 to a single manager on the next clean rebuild — preference still being
 worked out.
 
-### Move the WinRM password out of `--ask-pass`
-
-Currently typed at the prompt every run. An `ansible-vault` blob or a
-1Password `op` lookup would let unattended re-runs happen without keyboard
-involvement. Low priority while interactive runs are the norm.

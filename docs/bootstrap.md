@@ -69,8 +69,8 @@ Edit `ansible/inventory.ini`:
 - `ansible_user` — the local admin you created above (default: `ansible`)
 
 The password is not stored in inventory. Ansible prompts for it on stdin via
-`--ask-pass`. To switch to vaulted credentials later, see
-`ansible-vault encrypt_string`.
+`--ask-pass`. This is the officially supported workflow — no vault or
+external credential lookup.
 
 ## Run
 
