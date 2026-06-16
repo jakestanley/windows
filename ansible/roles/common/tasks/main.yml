@@ -1,96 +1,57 @@
 ---
-# community.windows.win_winget does not exist yet (tracked as community.windows#611);
-# install / uninstall are driven through win_powershell wrappers around winget.exe.
+# Desktop GUI app installation and NVIDIA driver updates are intentionally
+# not managed by Ansible — both need an interactive user session that WinRM
+# does not provide. See docs/maintenance.md and README "Platform limitations"
+# for the manual procedures.
 
-- name: Install desktop packages via winget
+- name: Remove default Microsoft bloatware AppX packages
   ansible.windows.win_powershell:
     script: |
+      # Native Remove-AppxPackage works over WinRM (no WindowsApps ACL issue
+      # since we're not executing a packaged binary, just operating on the
+      # package metadata via the AppX deployment service).
       $packages = @(
-        @{ id = 'Valve.Steam';                          source = 'winget' },
-        @{ id = 'Mozilla.Firefox';                      source = 'winget' },
-        @{ id = 'Discord.Discord';                      source = 'winget' },
-        @{ id = 'Dropbox.Dropbox';                      source = 'winget' },
-        @{ id = 'AgileBits.1Password';                  source = 'winget' },
-        @{ id = 'Obsidian.Obsidian';                    source = 'winget' },
-        @{ id = 'Microsoft.Git';                        source = 'winget' },
-        @{ id = 'Hawaii_Beach.TinyNvidiaUpdateChecker'; source = 'winget' },
-        @{ id = 'ImageMagick.Q16';                      source = 'winget' },
-        @{ id = 'Microsoft.GamingApp';                  source = 'winget' },  # Xbox app
-        @{ id = '9NKSQGP7F2NH';                         source = 'msstore' }  # WhatsApp
-      )
-      $changed = @()
-      $alreadyOk = @()
-      foreach ($p in $packages) {
-        $out = & winget install --exact --id $p.id --source $p.source `
-            --silent --accept-source-agreements --accept-package-agreements 2>&1 | Out-String
-        $rc = $LASTEXITCODE
-        # winget returns -1978335189 (0x8A15002B) when the package is already
-        # installed; treat that as a no-op rather than a failure.
-        if ($rc -eq 0) {
-          $changed += $p.id
-        } elseif ($rc -eq -1978335189 -or $out -match 'already installed') {
-          $alreadyOk += $p.id
-        } else {
-          throw "winget install $($p.id) failed (rc=$rc): $out"
-        }
-      }
-      $Ansible.Changed = $changed.Count -gt 0
-      $Ansible.Result  = @{ installed = $changed; already_present = $alreadyOk }
-
-- name: Check and install NVIDIA driver updates via TinyNvidiaUpdateChecker
-  ansible.windows.win_powershell:
-    script: |
-      $exe = (Get-Command TinyNvidiaUpdateChecker.exe -ErrorAction SilentlyContinue).Source
-      if (-not $exe) { throw "TinyNvidiaUpdateChecker.exe not on PATH; ensure winget install step has run." }
-      # --quiet: no nag when up to date
-      # --noprompt: do not prompt to exit
-      # --confirm-dl: download and install without any user interaction
-      $out = & $exe --quiet --noprompt --confirm-dl 2>&1 | Out-String
-      $rc = $LASTEXITCODE
-      if ($rc -ne 0) { throw "TinyNvidiaUpdateChecker exited $rc: $out" }
-      $Ansible.Changed = ($out -match 'Downloading|Installing|Update available')
-      $Ansible.Result  = @{ output_tail = ($out -split "`n" | Select-Object -Last 10) -join "`n" }
-
-- name: Remove default Microsoft bloatware via winget
-  ansible.windows.win_powershell:
-    script: |
-      $names = @(
-        'Microsoft OneDrive',
-        'Outlook',
-        'Mail and Calendar',
-        'Weather',
-        'News',
-        'Get Help',
-        'Microsoft Teams',
-        'Feedback Hub',
-        'Windows Camera',
-        'Power Automate',
-        'Microsoft Sticky Notes',
-        'Paint',
-        'Microsoft Clipchamp',
-        'Microsoft To Do',
-        'Microsoft Photos',
-        'Microsoft Family',
-        'Windows Media Player'
+        'Microsoft.OutlookForWindows',       # Outlook (new)
+        'microsoft.windowscommunicationsapps',# Mail and Calendar
+        'Microsoft.BingWeather',             # Weather
+        'Microsoft.BingNews',                # News
+        'Microsoft.GetHelp',                 # Get Help
+        'MicrosoftTeams',                    # Teams (consumer)
+        'Microsoft.WindowsFeedbackHub',      # Feedback Hub
+        'Microsoft.WindowsCamera',           # Camera
+        'Microsoft.PowerAutomateDesktop',    # Power Automate
+        'Microsoft.MicrosoftStickyNotes',    # Sticky Notes
+        'Microsoft.Paint',                   # Paint
+        'Clipchamp.Clipchamp',               # Clipchamp
+        'Microsoft.Todos',                   # To Do
+        'Microsoft.Windows.Photos',          # Photos
+        'MicrosoftCorporationII.MicrosoftFamily', # Family
+        'Microsoft.ZuneMusic',               # Media Player / Groove legacy
+        'Microsoft.ZuneVideo'                # Movies & TV
       )
       $removed = @()
       $absent  = @()
-      foreach ($n in $names) {
-        $out = & winget uninstall --exact --name $n --silent `
-            --accept-source-agreements 2>&1 | Out-String
-        $rc = $LASTEXITCODE
-        # 0x8A150014 (-1978335212) = no installed package found
-        if ($rc -eq 0) {
-          $removed += $n
-        } elseif ($rc -eq -1978335212 -or $out -match 'No installed package found') {
-          $absent += $n
-        } else {
-          # don't fail the play on individual stubborn entries
-          $absent += "$n (rc=$rc)"
+      $errored = @()
+      foreach ($name in $packages) {
+        $pkgs = Get-AppxPackage -Name $name -AllUsers -ErrorAction SilentlyContinue
+        if (-not $pkgs) { $absent += $name; continue }
+        foreach ($pkg in $pkgs) {
+          try {
+            Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -ErrorAction Stop
+            $removed += $pkg.Name
+          } catch {
+            $errored += "$($pkg.Name): $($_.Exception.Message)"
+          }
         }
+        # Also strip from provisioning so new user accounts don't get it back.
+        Get-AppxProvisionedPackage -Online |
+          Where-Object DisplayName -eq $name |
+          ForEach-Object {
+            Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction SilentlyContinue | Out-Null
+          }
       }
       $Ansible.Changed = $removed.Count -gt 0
-      $Ansible.Result  = @{ removed = $removed; not_installed = $absent }
+      $Ansible.Result  = @{ removed = $removed; not_installed = $absent; errored = $errored }
 
 - name: Disable telemetry and search services
   ansible.windows.win_service:

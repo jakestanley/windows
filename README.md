@@ -35,12 +35,34 @@ Non-Nix controllers need `ansible-core`, `pywinrm`, and the collections in
 
 ## Details
 
-- [docs/bootstrap.md](docs/bootstrap.md)
-- [docs/services.md](docs/services.md)
-- [docs/wol.md](docs/wol.md)
-- [docs/sleep-on-lan.md](docs/sleep-on-lan.md)
-- [docs/gaming.md](docs/gaming.md) (unreviewed)
-- [docs/unattended.md](docs/unattended.md) — manual one-time setup, not in Ansible
+- [docs/bootstrap.md](docs/bootstrap.md) — Ansible-managed provisioning
+- [docs/services.md](docs/services.md) — homelab services role
+- [docs/wol.md](docs/wol.md) — Wake-on-LAN
+- [docs/sleep-on-lan.md](docs/sleep-on-lan.md) — Sleep-on-LAN
+- [docs/gaming.md](docs/gaming.md) — gaming role (unreviewed)
+- [docs/unattended.md](docs/unattended.md) — first-time manual setup: autologon
+- [docs/maintenance.md](docs/maintenance.md) — periodic manual tasks (NVIDIA driver updates, etc.)
+
+## Platform limitations
+
+Some things on this host are handled outside Ansible by design:
+
+- **Desktop GUI app installation** (Steam, Firefox, Discord, Dropbox,
+  1Password, Obsidian, ImageMagick, TinyNvidiaUpdateChecker, etc.) is
+  **not** automated. winget over WinRM hits a WindowsApps ACL deny (the
+  `ansible` local admin has never logged in interactively, so
+  `Microsoft.DesktopAppInstaller` is not provisioned for it), and
+  Chocolatey duplicates anything already installed via winget. Install
+  these once with `winget` from an interactive PowerShell session on
+  the host — see the planned `scripts/install-desktop-apps.ps1`
+  Roadmap entry.
+- **NVIDIA driver updates** — same WinRM/AppX boundary as above; the
+  TinyNvidiaUpdateChecker binary installed by winget is unreachable
+  from the playbook. Run manually from shrike; see
+  `docs/maintenance.md`.
+- **Unattended autologon** — see `docs/unattended.md`. Configured once
+  via Sysinternals Autologon; LSA-stored credential, not re-applied
+  per playbook run.
 
 ## Roadmap
 
@@ -63,15 +85,22 @@ when the need shows up:
   Sleep-on-LAN). Useful as a one-shot when WoL or NTP stops behaving
   (we hit this once with the clock-drift bug).
 
-Everything else (`desktop`, `bloatware`, `services-disable`, `registry`,
-`folders`, `gaming`, `packages`, `clone`) was speculative — skip until a
-real workflow demands them.
+### Unify the package manager used by the services role
 
-### Unify the package manager on winget
+The `services` role uses Chocolatey for `git.portable`, `python312`,
+`nssm`, `ffmpeg`, and `ollama`. The `common` role uses neither winget
+nor choco for end-user apps (see Platform limitations). Worth flattening
+to a single manager on the next clean rebuild — preference still being
+worked out.
 
-The `common` role uses winget; the `services` role still uses Chocolatey
-for `git.portable`, `python312`, `nssm`, `ffmpeg`, and `ollama`. Working,
-just inconsistent. Address on the next clean rebuild rather than now.
+### Ship `scripts/install-desktop-apps.ps1`
+
+Companion to the desktop-apps platform limitation above. A PowerShell
+script in this repo that the user runs interactively on shrike after a
+fresh install: contains the canonical winget package list (Steam,
+Firefox, Discord, Dropbox, 1Password, Obsidian, ImageMagick, etc.),
+idempotent, no Ansible involvement. Not automation — just keeps the
+canonical list version-controlled in the canonical source of truth.
 
 ### Move the WinRM password out of `--ask-pass`
 
