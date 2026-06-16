@@ -1,0 +1,63 @@
+---
+- name: Disable Fast Startup so Wake-on-LAN works after shutdown
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power
+    name: HiberbootEnabled
+    data: 0
+    type: dword
+  tags: [networking]
+
+- name: Allow inbound ICMPv4 echo (ping)
+  community.windows.win_firewall_rule:
+    name: ICMPv4 Echo Request (ping)
+    direction: in
+    action: allow
+    protocol: icmpv4
+    icmp_type_code:
+      - "8:*"
+    enabled: true
+    profiles: [domain, private]
+  tags: [networking]
+
+- name: Ensure w32time service is auto-started
+  ansible.windows.win_service:
+    name: w32time
+    state: started
+    start_mode: auto
+  tags: [networking]
+
+- name: Configure NTP peers and force resync
+  ansible.windows.win_powershell:
+    script: |
+      $peers = (w32tm /query /configuration | Select-String 'NtpServer:').ToString()
+      $want  = 'time.cloudflare.com,0x9 uk.pool.ntp.org,0x9'
+      if ($peers -notmatch [regex]::Escape($want)) {
+        w32tm /config /manualpeerlist:"$want" /syncfromflags:manual /reliable:yes /update | Out-Null
+        Restart-Service w32time -Force
+        Start-Sleep 2
+        w32tm /resync /force | Out-Null
+        $Ansible.Changed = $true
+      } else {
+        $Ansible.Changed = $false
+      }
+  tags: [networking]
+
+- name: Enable Wake-on-Magic-Packet on active NICs
+  ansible.windows.win_powershell:
+    script: |
+      $changed = $false
+      Get-NetAdapter -Physical | Where-Object Status -eq 'Up' | ForEach-Object {
+        try {
+          $pm = Get-NetAdapterPowerManagement -Name $_.Name -ErrorAction Stop
+          if ($pm.WakeOnMagicPacket -ne 'Enabled') {
+            Set-NetAdapterPowerManagement -Name $_.Name -WakeOnMagicPacket Enabled -ErrorAction Stop
+            $changed = $true
+          }
+        } catch {}
+      }
+      $Ansible.Changed = $changed
+  tags: [networking]
+
+- name: Install Sleep-on-LAN
+  ansible.builtin.import_tasks: sleep-on-lan.yml
+  tags: [networking]

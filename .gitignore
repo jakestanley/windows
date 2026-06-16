@@ -1,0 +1,6 @@
+*.retry
+.vault_pass
+inventory.local.ini
+*.log
+.DS_Store
+.ansible/

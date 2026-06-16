@@ -1,0 +1,7 @@
+---
+- name: Bootstrap shrike Windows host
+  hosts: windows
+  gather_facts: true
+  roles:
+    - common
+    - services

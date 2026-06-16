@@ -1,0 +1,73 @@
+---
+- name: Ensure NSSM is installed
+  chocolatey.chocolatey.win_chocolatey:
+    name: nssm
+    state: present
+
+- name: Ensure Sleep-on-LAN install directory exists
+  ansible.windows.win_file:
+    path: "{{ sol_install_dir }}"
+    state: directory
+
+- name: Download Sleep-on-LAN release zip
+  ansible.windows.win_get_url:
+    url: "{{ sol_download_url }}"
+    dest: "{{ sol_install_dir }}\\SleepOnLAN-{{ sol_version }}.zip"
+
+- name: Extract Sleep-on-LAN
+  community.windows.win_unzip:
+    src: "{{ sol_install_dir }}\\SleepOnLAN-{{ sol_version }}.zip"
+    dest: "{{ sol_install_dir }}"
+    creates: "{{ sol_install_dir }}\\windows_amd64\\sol.exe"
+
+- name: Register Sleep-on-LAN as an NSSM service
+  ansible.windows.win_powershell:
+    script: |
+      $nssm = Get-Command nssm.exe -ErrorAction SilentlyContinue
+      if (-not $nssm) { throw "nssm.exe not found on PATH" }
+
+      $sol = '{{ sol_install_dir }}\windows_amd64\sol.exe'
+      if (-not (Test-Path $sol)) { throw "sol.exe missing at $sol" }
+
+      $svc = Get-Service -Name SleepOnLan -ErrorAction SilentlyContinue
+      if (-not $svc) {
+        & $nssm.Source install SleepOnLan $sol
+        if ($LASTEXITCODE -ne 0) { throw "nssm install failed with exit $LASTEXITCODE" }
+        $Ansible.Changed = $true
+      } else {
+        $Ansible.Changed = $false
+      }
+
+      & $nssm.Source set SleepOnLan AppDirectory '{{ sol_install_dir }}\windows_amd64' | Out-Null
+      & $nssm.Source set SleepOnLan DisplayName 'Sleep-on-LAN' | Out-Null
+      & $nssm.Source set SleepOnLan Description 'Listens for magic packets and triggers sleep/shutdown' | Out-Null
+
+      if (-not (Get-Service -Name SleepOnLan -ErrorAction SilentlyContinue)) {
+        throw "SleepOnLan service was not registered"
+      }
+
+- name: Ensure Sleep-on-LAN service is started
+  ansible.windows.win_service:
+    name: SleepOnLan
+    state: started
+    start_mode: auto
+
+- name: Allow Sleep-on-LAN UDP listener
+  community.windows.win_firewall_rule:
+    name: Sleep-on-LAN (UDP)
+    localport: "{{ sol_listen_port }}"
+    protocol: UDP
+    direction: in
+    action: allow
+    enabled: true
+    profiles: [domain, private]
+
+- name: Allow Sleep-on-LAN HTTP endpoint
+  community.windows.win_firewall_rule:
+    name: Sleep-on-LAN (HTTP)
+    localport: "{{ sol_http_port }}"
+    protocol: TCP
+    direction: in
+    action: allow
+    enabled: true
+    profiles: [domain, private]

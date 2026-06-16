@@ -1,0 +1,6 @@
+---
+sol_version: 1.1.1-RELEASE
+sol_install_dir: C:\Program Files\SleepOnLan
+sol_listen_port: 9
+sol_http_port: 8009
+sol_download_url: "https://github.com/SR-G/sleep-on-lan/releases/download/{{ sol_version }}/SleepOnLAN-{{ sol_version }}.zip"

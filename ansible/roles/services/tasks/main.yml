@@ -1,0 +1,139 @@
+---
+- name: Ensure git (portable) is installed
+  chocolatey.chocolatey.win_chocolatey:
+    name: git.portable
+    state: present
+  tags: [services]
+
+- name: Ensure Python 3.12 is installed (PyTorch CUDA wheels stop at cp312)
+  chocolatey.chocolatey.win_chocolatey:
+    name: python312
+    state: present
+  tags: [services]
+
+- name: Ensure NSSM is installed
+  chocolatey.chocolatey.win_chocolatey:
+    name: nssm
+    state: present
+  tags: [services]
+
+- name: Ensure ffmpeg is installed (demucs MP3 decoding)
+  chocolatey.chocolatey.win_chocolatey:
+    name: ffmpeg
+    state: present
+  tags: [services]
+
+- name: Ensure Ollama runtime is installed
+  chocolatey.chocolatey.win_chocolatey:
+    name: ollama
+    state: present
+  tags: [services]
+
+- name: Register Ollama runtime as an NSSM service
+  ansible.windows.win_powershell:
+    script: |
+      $ollama = (Get-Command ollama.exe -ErrorAction SilentlyContinue).Source
+      if (-not $ollama) { throw "ollama.exe not found on PATH after install" }
+      $nssm = (Get-Command nssm.exe -ErrorAction SilentlyContinue).Source
+      if (-not $nssm) { throw "nssm.exe not found on PATH" }
+
+      $svc = Get-Service -Name ollama -ErrorAction SilentlyContinue
+      if (-not $svc) {
+        & $nssm install ollama $ollama serve
+        if ($LASTEXITCODE -ne 0) { throw "nssm install ollama failed: $LASTEXITCODE" }
+        $Ansible.Changed = $true
+      } else {
+        $Ansible.Changed = $false
+      }
+
+      & $nssm set ollama AppDirectory (Split-Path $ollama -Parent) | Out-Null
+      & $nssm set ollama DisplayName 'Ollama' | Out-Null
+      & $nssm set ollama Description 'Ollama LLM runtime' | Out-Null
+      & $nssm set ollama AppEnvironmentExtra "OLLAMA_HOST=127.0.0.1:11434" | Out-Null
+
+      if (-not (Get-Service -Name ollama -ErrorAction SilentlyContinue)) {
+        throw "ollama service was not registered"
+      }
+  tags: [services]
+
+- name: Ensure Ollama service is started
+  ansible.windows.win_service:
+    name: ollama
+    state: started
+    start_mode: auto
+  tags: [services]
+
+- name: Ensure services source directory exists
+  ansible.windows.win_file:
+    path: "{{ services_root }}"
+    state: directory
+  tags: [services, clone]
+
+- name: Clone homelab service repositories
+  ansible.windows.win_command:
+    cmd: git clone {{ item.url }} {{ services_root }}\{{ item.name }}
+    creates: "{{ services_root }}\\{{ item.name }}\\.git"
+  loop: "{{ homelab_services }}"
+  tags: [services, clone]
+
+- name: Fast-forward existing service repositories
+  ansible.windows.win_command:
+    cmd: git pull --ff-only
+    chdir: "{{ services_root }}\\{{ item.name }}"
+  loop: "{{ homelab_services }}"
+  register: git_pull
+  changed_when: "'Already up to date.' not in (git_pull.stdout | default(''))"
+  tags: [services, clone, up]
+
+- name: Seed .env from .env.example with detected interpreter paths
+  ansible.windows.win_powershell:
+    script: |
+      $repo    = '{{ services_root }}\{{ item.name }}'
+      $envFile = Join-Path $repo '.env'
+      $example = Join-Path $repo '.env.example'
+
+      if (Test-Path $envFile) {
+        $Ansible.Changed = $false
+        return
+      }
+      if (-not (Test-Path $example)) {
+        $Ansible.Changed = $false
+        return
+      }
+
+      $python = $null
+      if (Test-Path 'C:\Python312\python.exe') { $python = 'C:\Python312\python.exe' }
+      if (-not $python) { $python = (Get-Command python.exe -ErrorAction SilentlyContinue).Source }
+      $ollama = (Get-Command ollama.exe -ErrorAction SilentlyContinue).Source
+
+      $overrides = '{{ (item.env_overrides | default({})) | to_json }}' | ConvertFrom-Json
+      $overrideKeys = @($overrides.PSObject.Properties.Name)
+
+      $lines = Get-Content $example | ForEach-Object {
+        $line = $_
+        if ($python -and $line -match '^([A-Z_]+_PYTHON_EXE)=') {
+          $line = "$($Matches[1])=$python"
+        } elseif ($ollama -and $line -match '^OLLAMA_EXE=') {
+          $line = "OLLAMA_EXE=$ollama"
+        }
+        foreach ($k in $overrideKeys) {
+          if ($line -match "^$([regex]::Escape($k))=") {
+            $line = "$k=$($overrides.$k)"
+            break
+          }
+        }
+        $line
+      }
+
+      $lines | Set-Content $envFile
+      $Ansible.Changed = $true
+      $Ansible.Result  = @{ python = $python; ollama = $ollama }
+  loop: "{{ homelab_services }}"
+  tags: [services, clone]
+
+- name: Install or update NSSM services via each repo's up.ps1
+  ansible.windows.win_shell: .\scripts\up.ps1
+  args:
+    chdir: "{{ services_root }}\\{{ item.name }}"
+  loop: "{{ homelab_services }}"
+  tags: [services, up]
