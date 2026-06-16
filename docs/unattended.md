@@ -1,14 +1,22 @@
-# Unattended boot (manual setup)
+# Manual one-time setup
 
-> Not automated. `shrike` is currently configured for unattended boot
-> manually; this doc exists so a future rebuild can recreate it. If you
-> are reading this because shrike rebooted to a lock screen, this is the
-> page to follow.
+First-time setup steps for `shrike` that aren't worth automating, or
+that automation can't reach. Periodic / maintenance procedures live in
+`docs/maintenance.md`.
+
+## Contents
+
+- [Unattended boot (autologon)](#unattended-boot-autologon)
+- [SSH transport for desktop apps (experimental)](#ssh-transport-for-desktop-apps-experimental)
+
+---
+
+## Unattended boot (autologon)
 
 Goal: cold boot → desktop → ready for Steam Remote Play / SSH, no
 intervention at the keyboard.
 
-## Why this is manual
+### Why this is manual
 
 Encoding autologon in Ansible requires the MSA password at every
 playbook run, even when the credential is already armed and stable. The
@@ -16,14 +24,14 @@ configuration doesn't drift in practice (the stored LSA secret is valid
 until the MSA password rotates, which is rare), so the cost of keeping
 it as code outweighs the rebuild convenience.
 
-## Constraints
+### Constraints
 
 - **MSA login is preserved** for software entitlement (Office, Steam,
   Dropbox account state, etc.).
 - The user is `mail` — the truncated local form of `mail@jakestanley.co.uk`.
   Confirm with `whoami` on shrike if unsure.
 
-## One-time setup
+### One-time setup
 
 Run from an elevated PowerShell on shrike:
 
@@ -44,13 +52,13 @@ autologon mail $env:COMPUTERNAME '<your-MSA-password>' /accepteula
 
 Reboot to verify. If you land on the desktop, you're done.
 
-## When you'll need to redo this
+### When you'll need to redo this
 
 - **You change the MSA password.** Re-run step 3 with the new password.
 - **A Windows update flips `DevicePasswordLessBuildVersion` back to 2.**
   Re-run step 1.
 
-## Verifying it's armed
+### Verifying it's armed
 
 ```powershell
 reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v AutoAdminLogon
@@ -61,10 +69,83 @@ reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v Defaul
 The password lives in LSA secrets, not in the registry, so it won't show
 up in a `reg query`.
 
-## Undoing it
+### Undoing it
 
 ```powershell
 autologon -d
 reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" `
     /v DevicePasswordLessBuildVersion /t REG_DWORD /d 2 /f
 ```
+
+---
+
+## SSH transport for desktop apps (experimental)
+
+> **Status:** experimental. Lives on branch `unreviewed/ssh-winget`.
+> Smoke test only — see `playbooks/shrike-ssh-test.yml`. If validated,
+> the wider desktop-apps surface (currently
+> `scripts/install-desktop-apps.ps1`) moves into a proper Ansible role
+> on this transport.
+
+### Why SSH instead of WinRM
+
+WinRM as the `ansible` local admin can't execute `winget` — the
+`Microsoft.DesktopAppInstaller` AppX package's WindowsApps directory
+denies execute access to users who have never logged in interactively
+(see `README.md` "Platform limitations"). OpenSSH on Windows runs
+sessions in interactive-equivalent context, so a user that has logged
+in once on the desktop (`mail`) has AppX provisioned and can invoke
+`winget`.
+
+The MSA passwordless setting on `mail` does not block SSH **key auth** —
+keys are validated by `sshd` and the session token is built via Win32
+APIs without consulting Windows password authentication. The same MSA
+setting that breaks WinRM/NTLM is invisible to SSH keys.
+
+### One-time setup
+
+#### On the controller
+
+Generate a dedicated key for shrike:
+
+```sh
+ssh-keygen -t ed25519 -f ~/.ssh/shrike_ed25519 -C "ansible-controller@shrike"
+```
+
+#### On shrike (Ansible-driven, runs over the existing WinRM connection)
+
+```sh
+nix-shell
+cd ansible
+ansible-playbook playbooks/shrike-ssh-bootstrap.yml --ask-pass
+```
+
+The playbook installs OpenSSH Server, opens the firewall, sets
+PowerShell as the default shell, writes the controller's public key
+into `C:\ProgramData\ssh\administrators_authorized_keys` (the file
+sshd uses for admin-group users — `mail` is one), and applies the
+strict ACLs sshd requires.
+
+Pass `-e ssh_public_key_path=/some/other/path.pub` if your key lives
+somewhere other than `~/.ssh/shrike_ed25519.pub`.
+
+### Verify
+
+```sh
+ssh -i ~/.ssh/shrike_ed25519 mail@shrike.stanley.arpa whoami
+# expect: mail
+```
+
+No password prompt. If you get one, key placement or ACLs failed —
+check `C:\ProgramData\ssh\administrators_authorized_keys` on shrike
+and the sshd event log.
+
+### Run the smoke test
+
+```sh
+ansible-playbook playbooks/shrike-ssh-test.yml
+```
+
+Installs `Hawaii_Beach.TinyNvidiaUpdateChecker` via winget over SSH as
+`mail`. No prompts. If it succeeds (or detects already-installed),
+the transport works end-to-end.
