@@ -1,0 +1,27 @@
+---
+# Smoke test for SSH-as-mail winget over Ansible.
+# Installs only TinyNvidiaUpdateChecker — if this succeeds, the wider
+# desktop-apps surface can move into a proper role on this transport.
+# See docs/ssh-setup.md.
+- name: shrike — winget smoke test (SSH as mail)
+  hosts: shrike_ssh
+  gather_facts: false
+  tasks:
+    - name: Install TinyNvidiaUpdateChecker via winget
+      ansible.builtin.raw: |
+        winget install --exact --id Hawaii_Beach.TinyNvidiaUpdateChecker `
+          --source winget --silent `
+          --accept-source-agreements --accept-package-agreements
+      register: winget_result
+      changed_when: "'Successfully installed' in winget_result.stdout"
+      # winget exit codes we accept as success:
+      #   0           = installed
+      #   -1978335189 = already installed (treat as no-op)
+      failed_when: >-
+        winget_result.rc != 0 and
+        winget_result.rc != -1978335189 and
+        'already installed' not in (winget_result.stdout | default(''))
+
+    - name: Show winget output tail
+      ansible.builtin.debug:
+        msg: "{{ (winget_result.stdout | default('')).split('\n') | last(10) | join('\n') }}"
