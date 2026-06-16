@@ -85,11 +85,14 @@ when the need shows up:
   Sleep-on-LAN). Useful as a one-shot when WoL or NTP stops behaving
   (we hit this once with the clock-drift bug).
 
-### Unify the package manager used by the services role
+### Steam: resolve dual choco/winget install
 
-The `services` role uses Chocolatey for `git.portable`, `python312`,
-`nssm`, `ffmpeg`, and `ollama`. The `common` role uses neither winget
-nor choco for end-user apps (see Platform limitations). Worth flattening
-to a single manager on the next clean rebuild — preference still being
-worked out.
+The aborted Chocolatey desktop-install attempt left a `choco`-installed
+Steam at `C:\Program Files (x86)\Steam` that overlaps the winget
+install path. Removing the choco copy automatically could clobber the
+winget Steam's library config and account state, so it is left for
+manual review via Programs and Features on shrike. Other choco dupes
+from that aborted run (1password, firefox, imagemagick, imagemagick.app,
+obsidian) have already been uninstalled — Steam is the only outstanding
+overlap.
 
