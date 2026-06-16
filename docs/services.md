@@ -7,20 +7,18 @@ service.
 ## Run
 
 ```sh
-ansible-playbook playbooks/shrike-bootstrap.yml --tags services --ask-pass
+ansible-playbook playbooks/shrike-bootstrap.yml --ask-pass
 ```
 
-Sub-tags for narrower re-runs:
-
-| Tag | Tasks |
-|---|---|
-| `services` | Everything below |
-| `clone` | Ensure git/python, create dir, clone, pull, seed `.env` |
-| `up` | Pull latest + re-run each repo's `scripts/up.ps1` |
+The whole playbook is idempotent so a full re-run is the standard
+"deploy new service code" workflow. If you only want to re-run a
+specific step, use `--start-at-task`:
 
 ```sh
-# only re-apply NSSM service config:
-ansible-playbook playbooks/shrike-bootstrap.yml --tags up --ask-pass
+ansible-playbook playbooks/shrike-bootstrap.yml --list-tasks
+ansible-playbook playbooks/shrike-bootstrap.yml \
+    --start-at-task "Install or update NSSM services via each repo's up.ps1" \
+    --ask-pass
 ```
 
 ## What gets installed
@@ -77,11 +75,11 @@ homelab_services:
 
 Other host-specific paths (`DATA_ROOT`, port overrides, etc.) keep their
 `.env.example` values. Edit `C:\homelab\<repo>\.env` directly, then re-run
-`--tags up` to re-apply.
+the playbook to re-apply.
 
 The seed task only runs when `.env` is missing — your edits never get
 clobbered. To re-trigger seeding for one service, delete its `.env` and
-re-run `--tags clone`.
+re-run the playbook.
 
 ## Where state lives
 

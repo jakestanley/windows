@@ -49,8 +49,8 @@ choose when it runs.
 
 ### Why this isn't in the playbook
 
-The `Microsoft.DesktopAppInstaller` binary (and therefore anything winget
-installed) lives under `C:\Program Files\WindowsApps\` with ACLs that
-deny network-logon users execute access. Ansible runs over WinRM as a
-network-logon user that has never logged in interactively, so it can't
-reach the winget-installed TNUC. See README "Platform limitations".
+TNUC the binary _is_ installed by the `desktop_apps` role (via winget
+over the SSH-as-mail transport), but the actual `--confirm-dl` run is
+left manual on purpose: a driver swap kills any in-flight gaming
+session or CUDA workload, so you choose when it runs. See README
+"Platform limitations".

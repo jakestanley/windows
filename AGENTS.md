@@ -8,51 +8,55 @@ This repo is the canonical source of truth for provisioning the Windows
 host `shrike`. It contains:
 
 - An Ansible bootstrap (`ansible/`) for everything that can be managed
-  cleanly over WinRM: services, registry, files, networking, scheduled
-  tasks, AppX bloatware removal, and the homelab service clones.
-- Scripts (`scripts/`) for things Ansible **cannot** do cleanly over
-  WinRM and that a human must run interactively on the host.
-- Docs (`docs/`) covering manual procedures that aren't worth coding.
+  cleanly over WinRM (services, registry, networking, AppX bloatware
+  removal, homelab service clones) and the desktop apps role driven
+  over SSH-as-mail (`roles/desktop_apps/`).
+- Docs (`docs/`) covering the one-time manual setup that bootstraps the
+  SSH transport and autologon.
 
-Read `README.md` "Platform limitations" before assuming a task belongs
-in Ansible. The boundary is enforced by Windows' AppX/Network-Logon
-security model, not by preference, and several previous attempts to
-push past it have failed expensively.
+Two transports for two reasons:
+
+- **WinRM as `ansible`** (local admin) for the standard machine config.
+  Network logon, no AppX provisioning needed.
+- **SSH key auth as `mail`** (MSA user) for winget. SSH key auth
+  bypasses Windows LSA password auth, so the MSA passwordless setting
+  doesn't block it; the session runs in the interactive-equivalent
+  context that AppX/winget require.
 
 ## Adding a new desktop app
 
-Desktop GUI apps live in `scripts/install-desktop-apps.ps1`, **not** in
-the Ansible `common` role. The script is the canonical list and is
-idempotent — re-runs are safe.
+Desktop GUI apps are managed by the `desktop_apps` role over SSH.
+The canonical list is `ansible/roles/desktop_apps/defaults/main.yml`.
 
 To add a new app:
 
-1. Find its winget id with `winget search <name>` on a Windows machine,
-   or check https://winget.run / https://winstall.app.
-2. Add an entry to the `$packages` array in
-   `scripts/install-desktop-apps.ps1`, keeping the alphabetisation
-   within its source group. Use `Source = 'winget'` for the community
-   repo and `Source = 'msstore'` for Microsoft Store items.
+1. Find its id with `winget search <name>` on a Windows machine, or
+   check https://winget.run / https://winstall.app.
+2. Add an entry to `desktop_packages` in
+   `ansible/roles/desktop_apps/defaults/main.yml`, keeping the
+   alphabetisation within its source group. Use `source: 'winget'`
+   for the community repo and `source: 'msstore'` for Microsoft Store
+   items.
 3. Add a trailing `# Display name` comment if the package id is opaque
    (anything from `msstore` always needs one — they use numeric ids).
-4. Do not add the package to `ansible/roles/common/tasks/main.yml`.
-   winget over WinRM is broken; see README "Platform limitations".
-
-The user re-runs the script on shrike interactively after the change.
+4. The user applies it with
+   `ansible-playbook playbooks/shrike-desktop-apps.yml`. The role is
+   idempotent; re-runs are safe.
 
 ## Removing a desktop app
 
-Remove the entry from `$packages` in `scripts/install-desktop-apps.ps1`.
-The script does not uninstall — uninstallation is a separate, manual
-step (`winget uninstall --exact --id <id>` on shrike). Removing from
-the script just stops re-installing it on a fresh rebuild.
+Remove the entry from `desktop_packages` in
+`ansible/roles/desktop_apps/defaults/main.yml`. The role does not
+uninstall — uninstallation is a separate, manual step
+(`winget uninstall --exact --id <id>` from an interactive shell or
+SSH session as `mail`). Removing from the list just stops re-installing
+on a fresh rebuild.
 
 If the app needs to be actively uninstalled from existing hosts (e.g.
-because we no longer want it provisioned for new user accounts), do
-**not** put that in this script either. The Ansible `common` role
-already has a "Remove default Microsoft bloatware AppX packages" task
-that uses native `Remove-AppxPackage` and works over WinRM — extend
-that list instead. AppX-only path; for classic Win32 installers,
+because we no longer want it provisioned for new user accounts), the
+Ansible `common` role's "Remove default Microsoft bloatware AppX
+packages" task uses native `Remove-AppxPackage` and works over WinRM —
+extend that list instead. AppX-only path; for classic Win32 installers,
 manual uninstall remains the answer.
 
 ## Adding a Chocolatey package used by the services role

@@ -74,27 +74,40 @@ external credential lookup.
 
 ## Run
 
+Two playbooks. The bootstrap is WinRM-as-`ansible`, the desktop apps
+playbook is SSH-as-`mail` (see `docs/unattended.md` for the one-time
+SSH transport bootstrap).
+
 ```sh
 cd ansible
-ansible -m win_ping windows --ask-pass            # connectivity smoke test
-ansible-playbook playbooks/shrike-bootstrap.yml --ask-pass
+ansible -m win_ping windows --ask-pass             # connectivity smoke test
+ansible-playbook playbooks/shrike-bootstrap.yml --ask-pass     # config baseline
+ansible-playbook playbooks/shrike-desktop-apps.yml             # winget desktop apps
 ```
 
-## What the playbook does
+## What the bootstrap playbook does
 
 1. **common** — host baseline: default Microsoft bloatware AppX
    removal, telemetry off, registry tweaks (Bing/Cortana off, classic
    Win11 right-click context menu), D:\ folder relocation, and the
    networking block (WoL prep, ICMPv4 echo, NTP, Sleep-on-LAN NSSM
-   service). Desktop GUI apps and NVIDIA driver updates are **not**
-   installed by Ansible — see Platform limitations in `README.md`,
-   manual setup in `docs/unattended.md`, and periodic tasks in
-   `docs/maintenance.md`.
+   service).
 2. **gaming** — Steam Remote Play registry + firewall (UDP 27031-27036).
-   *Unreviewed; see `docs/gaming.md`.*
 3. **services** — clones `homelab-rtx`, `homelab-demucs`, `homelab-ollama`
    under `C:\homelab\`, seeds `.env` from `.env.example` on first clone, runs
    each repo's `scripts/up.ps1` to install the NSSM services.
+
+## What the desktop-apps playbook does
+
+Runs the `desktop_apps` role over the SSH-as-`mail` transport. The role
+loops over the canonical winget package list
+(`ansible/roles/desktop_apps/defaults/main.yml`) and installs / upgrades
+each via `winget install --exact`. Idempotent — already-installed
+packages are detected and skipped.
+
+NVIDIA driver updates are deliberately not run by the playbook even
+though TinyNvidiaUpdateChecker is installed by it; see
+`docs/maintenance.md`.
 
 ## After first run
 

@@ -1,9 +1,5 @@
 # Gaming
 
-> **Status:** unreviewed. Not yet executed on `shrike`. Lives on
-> branch `unreviewed/desktop-and-gaming`. Verify each task interactively
-> before promoting.
-
 `shrike` is the at-the-desk gaming PC and the streaming host for Steam
 Remote Play (headless via dummy plug). The `gaming` role keeps the
 Remote Play surface consistent across rebuilds.
@@ -23,7 +19,8 @@ them; they are not part of this role.
 
 ## After provisioning
 
-Steam itself is installed by the `common` role (winget `Valve.Steam`).
+Steam itself is installed by the `desktop_apps` role (winget `Valve.Steam`,
+applied via `playbooks/shrike-desktop-apps.yml`).
 After the playbook finishes:
 
 1. Sign into Steam at least once interactively. Remote Play requires an

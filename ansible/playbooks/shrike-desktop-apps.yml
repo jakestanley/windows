@@ -1,0 +1,17 @@
+---
+# Install / upgrade shrike's canonical desktop app set via winget over
+# SSH as the `mail` user. Separate from shrike-bootstrap.yml so a
+# routine config refresh doesn't trigger app upgrades mid-session.
+#
+# Prerequisites:
+#   - SSH transport bootstrapped on shrike (see docs/unattended.md).
+#   - Controller's SSH key at ~/.ssh/id_ed25519 with the matching
+#     public key in shrike's administrators_authorized_keys.
+#
+# Usage:
+#   ansible-playbook playbooks/shrike-desktop-apps.yml
+- name: shrike — desktop apps
+  hosts: shrike_ssh
+  gather_facts: false
+  roles:
+    - desktop_apps

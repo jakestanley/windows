@@ -1,0 +1,30 @@
+---
+# Canonical desktop app list for shrike. Installed via winget over the
+# SSH-as-mail transport (see docs/unattended.md "SSH transport for
+# desktop apps"). To add or remove an entry, see AGENTS.md
+# "Adding a new desktop app".
+#
+# Keep alphabetised within each source group for diff-friendliness.
+# Add a trailing `# Display name` comment when the id is opaque
+# (msstore entries always need one — they use numeric ids).
+desktop_packages:
+  # winget source
+  - { id: 'AgileBits.1Password',                  source: 'winget' }
+  - { id: 'Discord.Discord',                      source: 'winget' }
+  - { id: 'Dropbox.Dropbox',                      source: 'winget' }
+  - { id: 'Hawaii_Beach.TinyNvidiaUpdateChecker', source: 'winget' }
+  - { id: 'ImageMagick.Q16',                      source: 'winget' }
+  - { id: 'Microsoft.Git',                        source: 'winget' }
+  - { id: 'Mozilla.Firefox',                      source: 'winget' }
+  - { id: 'Obsidian.Obsidian',                    source: 'winget' }
+  - { id: 'Valve.Steam',                          source: 'winget' }
+  # Spotify.Spotify is deliberately excluded: its installer rejects any
+  # elevated session context, and SSH-as-mail always carries an admin
+  # token (mail is in Administrators + we use administrators_authorized_keys).
+  # Both --scope user and the msstore variant (9NCBCSZSJRSB) fail to help
+  # — the former is still admin-rejected, the latter installs a parallel
+  # UWP copy. Install once manually from a non-elevated interactive shell.
+
+  # Microsoft Store (msstore source uses opaque ProductIds)
+  - { id: '9MV0B5HZVK9Z',                         source: 'msstore' }   # Xbox app
+  - { id: '9NKSQGP7F2NH',                         source: 'msstore' }   # WhatsApp

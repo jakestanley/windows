@@ -79,13 +79,10 @@ reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" 
 
 ---
 
-## SSH transport for desktop apps (experimental)
+## SSH transport for desktop apps
 
-> **Status:** experimental. Lives on branch `unreviewed/ssh-winget`.
-> Smoke test only — see `playbooks/shrike-ssh-test.yml`. If validated,
-> the wider desktop-apps surface (currently
-> `scripts/install-desktop-apps.ps1`) moves into a proper Ansible role
-> on this transport.
+Used by `playbooks/shrike-desktop-apps.yml` to install/upgrade the
+canonical desktop app set (see `ansible/roles/desktop_apps/defaults/main.yml`).
 
 ### Why SSH instead of WinRM
 
@@ -133,12 +130,12 @@ No password prompt. If you get one, key placement or ACLs failed —
 check `C:\ProgramData\ssh\administrators_authorized_keys` on shrike
 and the sshd event log.
 
-### Run the smoke test
+### Apply the desktop app set
 
 ```sh
-ansible-playbook playbooks/shrike-ssh-test.yml
+ansible-playbook playbooks/shrike-desktop-apps.yml
 ```
 
-Installs `Hawaii_Beach.TinyNvidiaUpdateChecker` via winget over SSH as
-`mail`. No prompts. If it succeeds (or detects already-installed),
-the transport works end-to-end.
+No prompts. The role is idempotent — re-runs are safe (winget detects
+already-installed packages and skips). See `AGENTS.md`
+"Adding a new desktop app" for how to modify the list.

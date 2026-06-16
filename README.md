@@ -27,8 +27,12 @@ From the controller (Nix):
 nix-shell                          # installs ansible, pywinrm, collections
 cd ansible
 # edit inventory.ini (host, user)
-ansible-playbook playbooks/shrike-bootstrap.yml --ask-pass
+ansible-playbook playbooks/shrike-bootstrap.yml --ask-pass     # config baseline
+ansible-playbook playbooks/shrike-desktop-apps.yml             # desktop apps via SSH
 ```
+
+The second playbook uses the SSH-as-`mail` transport; see
+`docs/unattended.md` for the one-time bootstrap.
 
 Non-Nix controllers need `ansible-core`, `pywinrm`, and the collections in
 `ansible/requirements.yml` installed manually — see `docs/bootstrap.md`.
@@ -39,27 +43,19 @@ Non-Nix controllers need `ansible-core`, `pywinrm`, and the collections in
 - [docs/services.md](docs/services.md) — homelab services role
 - [docs/wol.md](docs/wol.md) — Wake-on-LAN
 - [docs/sleep-on-lan.md](docs/sleep-on-lan.md) — Sleep-on-LAN
-- [docs/gaming.md](docs/gaming.md) — gaming role (unreviewed)
+- [docs/gaming.md](docs/gaming.md) — gaming role (Steam Remote Play)
 - [docs/unattended.md](docs/unattended.md) — first-time manual setup (autologon, SSH transport)
 - [docs/maintenance.md](docs/maintenance.md) — periodic manual tasks (NVIDIA driver updates, etc.)
 
 ## Platform limitations
 
-Some things on this host are handled outside Ansible by design:
+Some things on this host are handled outside the standard WinRM
+bootstrap by design:
 
-- **Desktop GUI app installation** (Steam, Firefox, Discord, Dropbox,
-  1Password, Obsidian, ImageMagick, TinyNvidiaUpdateChecker, etc.) is
-  **not** automated. winget over WinRM hits a WindowsApps ACL deny (the
-  `ansible` local admin has never logged in interactively, so
-  `Microsoft.DesktopAppInstaller` is not provisioned for it), and
-  Chocolatey duplicates anything already installed via winget. Run
-  `scripts/install-desktop-apps.ps1` interactively on shrike — the
-  canonical list lives there; the script is idempotent. See `AGENTS.md`
-  for how to add or remove entries.
-- **NVIDIA driver updates** — same WinRM/AppX boundary as above; the
-  TinyNvidiaUpdateChecker binary installed by winget is unreachable
-  from the playbook. Run manually from shrike; see
-  `docs/maintenance.md`.
+- **NVIDIA driver updates** — installable via `winget` would be possible
+  over the SSH transport now, but the swap is destructive to in-flight
+  gaming sessions and CUDA workloads, so it stays opt-in. Run manually
+  from shrike; see `docs/maintenance.md`.
 - **Unattended autologon** — see `docs/unattended.md`. Configured once
   via Sysinternals Autologon; LSA-stored credential, not re-applied
   per playbook run.
@@ -78,21 +74,7 @@ when the need shows up:
 - `up` — pull latest in each homelab repo + re-run their `scripts/up.ps1`.
   This is the regular "deploy new service code" workflow; doing the full
   playbook to roll service updates is wasteful.
-- `nvidia` — TinyNvidiaUpdateChecker auto-install. Worth being skippable
-  via `--skip-tags nvidia` because a driver swap kills in-flight gaming
-  sessions and CUDA workloads.
 - `networking` — full networking block (Fast Startup, ICMP, NTP, WoL,
   Sleep-on-LAN). Useful as a one-shot when WoL or NTP stops behaving
   (we hit this once with the clock-drift bug).
-
-### Steam: resolve dual choco/winget install
-
-The aborted Chocolatey desktop-install attempt left a `choco`-installed
-Steam at `C:\Program Files (x86)\Steam` that overlaps the winget
-install path. Removing the choco copy automatically could clobber the
-winget Steam's library config and account state, so it is left for
-manual review via Programs and Features on shrike. Other choco dupes
-from that aborted run (1password, firefox, imagemagick, imagemagick.app,
-obsidian) have already been uninstalled — Steam is the only outstanding
-overlap.
 
