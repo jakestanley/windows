@@ -27,12 +27,15 @@ From the controller (Nix):
 nix-shell                          # installs ansible, pywinrm, collections
 cd ansible
 # edit inventory.ini (host, user)
-ansible-playbook playbooks/shrike-bootstrap.yml --ask-pass     # config baseline
-ansible-playbook playbooks/shrike-desktop-apps.yml             # desktop apps via SSH
+ansible-playbook playbooks/shrike-bootstrap.yml --ask-pass       # config baseline (WinRM)
+ansible-playbook playbooks/shrike-ssh-bootstrap.yml --ask-pass   # one-time: OpenSSH + key
+ansible-playbook playbooks/shrike-desktop-apps.yml               # desktop apps via SSH
 ```
 
-The second playbook uses the SSH-as-`mail` transport; see
-`docs/unattended.md` for the one-time bootstrap.
+The SSH bootstrap publishes your `~/.ssh/id_ed25519.pub` into shrike's
+`administrators_authorized_keys`; if you don't have a keypair yet run
+`ssh-keygen -t ed25519` first. See `docs/unattended.md` for the full
+transport rationale.
 
 Non-Nix controllers need `ansible-core`, `pywinrm`, and the collections in
 `ansible/requirements.yml` installed manually — see `docs/bootstrap.md`.
