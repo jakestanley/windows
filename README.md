@@ -55,10 +55,11 @@ Non-Nix controllers need `ansible-core`, `pywinrm`, and the collections in
 Some things on this host are handled outside the standard WinRM
 bootstrap by design:
 
-- **NVIDIA driver updates** — installable via `winget` would be possible
-  over the SSH transport now, but the swap is destructive to in-flight
-  gaming sessions and CUDA workloads, so it stays opt-in. Run manually
-  from shrike; see `docs/maintenance.md`.
+- **NVIDIA driver updates** — TinyNvidiaUpdateChecker itself is installed
+  by the `desktop_apps` role, but actually *running* it to swap drivers
+  is deliberately manual: the swap is destructive to in-flight gaming
+  sessions and CUDA workloads, so you choose when it runs. See
+  `docs/maintenance.md`.
 - **Unattended autologon** — see `docs/unattended.md`. Configured once
   via Sysinternals Autologon; LSA-stored credential, not re-applied
   per playbook run.
