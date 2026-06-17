@@ -7,7 +7,7 @@ that automation can't reach. Periodic / maintenance procedures live in
 ## Contents
 
 - [Unattended boot (autologon)](#unattended-boot-autologon)
-- [SSH transport for desktop apps (experimental)](#ssh-transport-for-desktop-apps-experimental)
+- [SSH transport for desktop apps](#ssh-transport-for-desktop-apps)
 
 ---
 
