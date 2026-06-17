@@ -34,7 +34,7 @@ ansible-playbook playbooks/shrike-desktop-apps.yml               # desktop apps 
 
 The SSH bootstrap publishes your `~/.ssh/id_ed25519.pub` into shrike's
 `administrators_authorized_keys`; if you don't have a keypair yet run
-`ssh-keygen -t ed25519` first. See `docs/unattended.md` for the full
+`ssh-keygen -t ed25519` first. See [docs/unattended.md](docs/unattended.md) for the full
 transport rationale.
 
 Non-Nix controllers need `ansible-core`, `pywinrm`, and the collections in
@@ -59,7 +59,7 @@ bootstrap by design:
   by the `desktop_apps` role, but actually *running* it to swap drivers
   is deliberately manual: the swap is destructive to in-flight gaming
   sessions and CUDA workloads, so you choose when it runs. See
-  `docs/maintenance.md`.
+  [docs/maintenance.md](docs/maintenance.md).
 - **Unattended autologon** — see `docs/unattended.md`. Configured once
   via Sysinternals Autologon; LSA-stored credential, not re-applied
   per playbook run.

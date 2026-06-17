@@ -84,10 +84,10 @@ re-run the playbook.
 ## Where state lives
 
 | Service | NSSM service name | Logs | Data |
-|---|---|---|---|
-| homelab-rtx | `homelab-rtx` | `C:\homelab\homelab-rtx\logs\` | repo-local |
+|----------------|------------------|-----------------------------------|----------------------------|
+| homelab-rtx    | `homelab-rtx`    | `C:\homelab\homelab-rtx\logs\`    | repo-local                 |
 | homelab-demucs | `homelab-demucs` | `C:\homelab\homelab-demucs\logs\` | `STORAGE_ROOT` from `.env` |
-| homelab-ollama | `homelab-ollama` | `C:\homelab\homelab-ollama\logs\` | `STATE_DIR` from `.env` |
+| homelab-ollama | `homelab-ollama` | `C:\homelab\homelab-ollama\logs\` | `STATE_DIR` from `.env`    |
 
 ## Inspecting a single service
 
