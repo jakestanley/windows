@@ -23,6 +23,21 @@ Two transports for two reasons:
   doesn't block it; the session runs in the interactive-equivalent
   context that AppX/winget require.
 
+## Running Ansible from the controller
+
+`ansible-playbook` is not on the host `PATH` — the controller environment
+is provided by `shell.nix`. Enter it first:
+
+```sh
+nix-shell                                                # from repo root
+cd ansible
+ansible-playbook playbooks/<playbook>.yml [--ask-pass]
+```
+
+The `shellHook` installs the collections from `ansible/requirements.yml`
+into `.ansible/collections` on first entry. Use this for any deploy or
+re-run (services role, desktop apps, SSH bootstrap, etc.).
+
 ## Adding a new desktop app
 
 Desktop GUI apps are managed by the `desktop_apps` role over SSH.
