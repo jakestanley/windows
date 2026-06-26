@@ -82,3 +82,23 @@ when the need shows up:
   Sleep-on-LAN). Useful as a one-shot when WoL or NTP stops behaving
   (we hit this once with the clock-drift bug).
 
+### Secret injection into service `.env` files
+
+The services role's "Seed .env from .env.example" task
+(`ansible/roles/services/tasks/main.yml`) cannot currently deliver
+secrets like `RTX_INFLUX_TOKEN`:
+
+- It skips entirely if `.env` already exists on the host, so
+  `env_overrides` only fires on a fresh clone.
+- Its override regex only matches uncommented `KEY=` lines, so
+  commented-out keys in `.env.example` (the InfluxDB block in
+  `homelab-rtx` is the live example) can't be activated by an override.
+
+To fix: (i) merge `env_overrides` into an existing `.env` instead of
+short-circuiting, (ii) widen the regex to match an optional leading
+`#\s*` so commented keys can be uncommented and set, (iii) move the
+token itself into ansible-vault (e.g. `group_vars/windows/vault.yml`)
+and reference it from `env_overrides`. Until this lands, the InfluxDB
+token is set by hand on the host and is not reproducible from a clean
+rebuild.
+
