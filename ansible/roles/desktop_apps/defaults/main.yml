@@ -18,6 +18,7 @@ desktop_packages:
   - { id: 'Mozilla.Firefox',                      source: 'winget' }
   - { id: 'Obsidian.Obsidian',                    source: 'winget' }
   - { id: 'Valve.Steam',                          source: 'winget' }
+  - { id: 'vim.vim',                              source: 'winget' }
   # Spotify.Spotify is deliberately excluded: its installer rejects any
   # elevated session context, and SSH-as-mail always carries an admin
   # token (mail is in Administrators + we use administrators_authorized_keys).
