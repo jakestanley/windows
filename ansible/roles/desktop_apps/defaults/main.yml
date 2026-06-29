@@ -17,6 +17,7 @@ desktop_packages:
   - { id: 'Microsoft.Git',                        source: 'winget' }
   - { id: 'Mozilla.Firefox',                      source: 'winget' }
   - { id: 'Obsidian.Obsidian',                    source: 'winget' }
+  - { id: 'thebookisclosed.Vive',                 source: 'winget' }  # ViveTool — Windows feature flag toggler
   - { id: 'Valve.Steam',                          source: 'winget' }
   - { id: 'vim.vim',                              source: 'winget' }
   # Spotify.Spotify is deliberately excluded: its installer rejects any
