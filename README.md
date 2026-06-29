@@ -47,6 +47,7 @@ Non-Nix controllers need `ansible-core`, `pywinrm`, and the collections in
 - [docs/wol.md](docs/wol.md) — Wake-on-LAN
 - [docs/sleep-on-lan.md](docs/sleep-on-lan.md) — Sleep-on-LAN
 - [docs/gaming.md](docs/gaming.md) — gaming role (Steam Remote Play)
+- [docs/sunshine.md](docs/sunshine.md) — Sunshine (Moonlight stream host)
 - [docs/unattended.md](docs/unattended.md) — first-time manual setup (autologon, SSH transport)
 - [docs/maintenance.md](docs/maintenance.md) — periodic manual tasks (NVIDIA driver updates, etc.)
 

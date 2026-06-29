@@ -1,0 +1,48 @@
+---
+# Install Sunshine (LizardByte) — a Moonlight-compatible game stream
+# host. Runs as the auto-starting SunshineService; first-time pairing
+# and web-UI credentials are interactive (https://localhost:47990) and
+# remain manual, the same way Steam Remote Play pairing does.
+
+- name: Ensure ViGEmBus is installed (Sunshine fails fatally without it)
+  chocolatey.chocolatey.win_chocolatey:
+    name: vigembus
+    state: present
+  notify: Restart Sunshine
+
+- name: Ensure Sunshine is installed
+  chocolatey.chocolatey.win_chocolatey:
+    name: sunshine
+    state: present
+
+- name: Allow Sunshine control + web UI ports (TCP)
+  community.windows.win_firewall_rule:
+    name: Sunshine (TCP)
+    localport: "{{ sunshine_firewall_tcp_ports }}"
+    protocol: TCP
+    direction: in
+    action: allow
+    enabled: true
+    profiles: [domain, private]
+
+- name: Allow Sunshine streaming ports (UDP)
+  community.windows.win_firewall_rule:
+    name: Sunshine (UDP)
+    localport: "{{ sunshine_firewall_udp_ports }}"
+    protocol: UDP
+    direction: in
+    action: allow
+    enabled: true
+    profiles: [domain, private]
+
+- name: Render Sunshine config
+  ansible.windows.win_template:
+    src: sunshine.conf.j2
+    dest: "{{ sunshine_config_path }}"
+  notify: Restart Sunshine
+
+- name: Ensure SunshineService is started
+  ansible.windows.win_service:
+    name: SunshineService
+    state: started
+    start_mode: auto

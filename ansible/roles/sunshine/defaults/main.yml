@@ -1,0 +1,18 @@
+---
+# Display name reported to Moonlight clients during pairing/listing.
+sunshine_name: shrike
+
+# Base port. Sunshine derives the rest from this (+1 = HTTP, +5 = HTTPS,
+# +6 = Web UI HTTPS, +21 = RTSP). Changing this requires updating the
+# firewall ports below to match.
+sunshine_port: 47989
+
+# Verbosity: verbose | debug | info | warning | error | fatal | none.
+sunshine_min_log_level: info
+
+# Installed by chocolatey. The package drops the config under Program Files.
+sunshine_config_path: 'C:\Program Files\Sunshine\config\sunshine.conf'
+
+# Inbound firewall ports Sunshine listens on with the default sunshine_port.
+sunshine_firewall_tcp_ports: "47984,47989,47990,48010"
+sunshine_firewall_udp_ports: "47998-48000,48010"

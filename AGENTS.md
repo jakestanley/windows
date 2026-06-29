@@ -74,13 +74,13 @@ packages" task uses native `Remove-AppxPackage` and works over WinRM —
 extend that list instead. AppX-only path; for classic Win32 installers,
 manual uninstall remains the answer.
 
-## Adding a Chocolatey package used by the services role
+## Adding a Chocolatey package
 
 `ansible/roles/services/tasks/main.yml` uses `chocolatey.chocolatey.win_chocolatey`
 for packages the homelab services consume programmatically (git, python,
-nssm, ffmpeg, ollama). New entries go there as a separate task block.
-Keep Chocolatey usage confined to the `services` role — see README
-roadmap for the unification follow-up.
+nssm, ffmpeg, ollama). The `sunshine` role uses it for its own install.
+New entries should go into the role that owns the consuming surface; do
+not introduce Chocolatey into `common`, `gaming`, or `desktop_apps`.
 
 ## Adding a manual maintenance procedure
 
