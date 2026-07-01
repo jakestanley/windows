@@ -121,7 +121,10 @@
   loop: "{{ homelab_services }}"
 
 - name: Install or update NSSM services via each repo's up.ps1
-  ansible.windows.win_shell: .\scripts\up.ps1
+  # -Restart forces the running process to pick up updated AppEnvironmentExtra
+  # and pulled code. up.ps1 only restarts when explicitly asked; without this
+  # flag, redeploys silently leave the old process running with stale env.
+  ansible.windows.win_shell: .\scripts\up.ps1 -Restart
   args:
     chdir: "{{ services_root }}\\{{ item.name }}"
   loop: "{{ homelab_services }}"
