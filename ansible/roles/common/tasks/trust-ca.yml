@@ -1,0 +1,30 @@
+---
+# Install the Stanley Homelab Root CA into the Windows LocalMachine\Root
+# trust store. Once present, anything on the host that consults the system
+# trust store (PowerShell, .NET, Python's ssl.create_default_context, etc.)
+# trusts *.stanley.arpa certificates issued by it — including the
+# InfluxDB endpoint that homelab-rtx publishes metrics to.
+
+- name: Stage Stanley Homelab Root CA on host
+  ansible.windows.win_copy:
+    src: "{{ lookup('env', 'HOME') }}/homelab.crt"
+    dest: C:\Windows\Temp\stanley-homelab-root-ca.crt
+
+- name: Import Stanley Homelab Root CA into LocalMachine\Root if absent
+  ansible.windows.win_powershell:
+    script: |
+      $thumb = '4BE064302BAE16B18A8B0F0CF3CE3079EB575E892459EE3932DA007E62128317'
+      $existing = Get-ChildItem -Path "Cert:\LocalMachine\Root\$thumb" -ErrorAction SilentlyContinue
+      if ($existing) {
+        $Ansible.Changed = $false
+        $Ansible.Result  = @{ status = 'already-trusted'; subject = $existing.Subject }
+        return
+      }
+      $imp = Import-Certificate -FilePath 'C:\Windows\Temp\stanley-homelab-root-ca.crt' -CertStoreLocation 'Cert:\LocalMachine\Root'
+      $Ansible.Changed = $true
+      $Ansible.Result  = @{ status = 'imported'; subject = $imp.Subject; thumbprint = $imp.Thumbprint }
+
+- name: Remove staged CA cert file
+  ansible.windows.win_file:
+    path: C:\Windows\Temp\stanley-homelab-root-ca.crt
+    state: absent

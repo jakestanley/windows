@@ -120,6 +120,9 @@
 - name: Install Sleep-on-LAN
   ansible.builtin.import_tasks: sleep-on-lan.yml
 
+- name: Trust Stanley Homelab Root CA
+  ansible.builtin.import_tasks: trust-ca.yml
+
 - name: Disable Bing search in Start menu
   ansible.windows.win_regedit:
     path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Search

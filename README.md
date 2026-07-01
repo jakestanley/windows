@@ -103,3 +103,30 @@ and reference it from `env_overrides`. Until this lands, the InfluxDB
 token is set by hand on the host and is not reproducible from a clean
 rebuild.
 
+### Trust the Stanley Homelab Root CA from service Python processes
+
+`requests` / `urllib3` (used by `homelab-rtx` to publish to InfluxDB)
+consult `certifi` — not the OS trust store — so even after the
+`common` role installs the root CA into Windows' `LocalMachine\Root`,
+service-side Python still rejects `*.stanley.arpa` certificates.
+
+The current workaround is host-local and manual:
+`C:\homelab\stanley-homelab-root-ca.crt` was uploaded by hand and
+`REQUESTS_CA_BUNDLE=C:\homelab\stanley-homelab-root-ca.crt` was
+appended to `homelab-rtx`'s `.env`. This won't survive a clean rebuild.
+
+Two paths to a real fix, not mutually exclusive:
+
+- **Ship the cert + env var from the services role.** Drop the cert
+  at a stable path via a `win_copy` task, then add
+  `REQUESTS_CA_BUNDLE` to `env_overrides` for any service that talks
+  to an internal HTTPS endpoint. Blocked on the secret-injection fix
+  above — `env_overrides` currently doesn't apply to an existing
+  `.env`.
+- **Adopt `truststore` upstream in each service.** Adding
+  `import truststore; truststore.inject_into_ssl()` at app startup
+  makes Python's `ssl` module (and therefore `requests`) consult the
+  Windows trust store. Once that lands, the existing
+  `common`-role trust task is sufficient — no per-service env-var
+  plumbing needed.
+

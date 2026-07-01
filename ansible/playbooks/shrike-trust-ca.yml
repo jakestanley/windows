@@ -1,0 +1,13 @@
+---
+# Surgical playbook: install only the Stanley Homelab Root CA, without
+# re-running the rest of the common role (firewall, NTP, WoL, etc.).
+# Use this when you need to refresh the trust store without touching
+# networking config.
+- name: Trust Stanley Homelab Root CA on shrike
+  hosts: windows
+  gather_facts: false
+  tasks:
+    - name: Apply trust-ca tasks from common role
+      ansible.builtin.import_role:
+        name: common
+        tasks_from: trust-ca
