@@ -28,6 +28,31 @@ The Ansible playbook cannot configure firmware. Manually enable in BIOS/UEFI:
   was fixed on `shrike`: the last-wake source always reported `Power
   Button` because the NIC never received a packet to log against.
 
+## Why the link-speed setting matters
+
+Ethernet link is a continuously-maintained physical layer state, not a
+per-packet transaction. When `shrike` enters S3 with the default
+`WolShutdownLinkSpeed = 10 Mbps First`, the Realtek PHY doesn't just
+drop TX power — it initiates an IEEE 802.3 auto-negotiation cycle to
+renegotiate down to 10Base-T half-duplex. That renegotiation takes
+several hundred milliseconds during which the physical link is *down*:
+the pilot signal disappears, the switch's port MAC transitions out of
+the forwarding state, and any traffic destined for that port (unicast
+or broadcast) is dropped by the switch's forwarding fabric, not by the
+NIC. Magic packets sent from the controller during that window never
+reach the PHY at all, so the NIC's WoL detection circuit — which is
+fully powered and armed — has nothing to match against. Some switches
+will also invalidate the port's MAC learning entry as soon as the link
+drops, so subsequent unicast magic packets are treated as unknown and
+get flooded (unmanaged switches) or dropped (managed switches with
+strict learning). Setting the property to `Not Speed Down`
+(`RegistryValue = 2`) instructs the driver to keep the link at native
+1Gbit full-duplex through S3; the switch never sees a link-down event,
+MAC learning stays valid, packet forwarding continues, the magic packet
+lands, and the NIC's PME# / PWRBTN# assertion wakes the platform. The
+trade-off is minor — the NIC keeps drawing ~1W of standby power instead
+of ~0.2W — in exchange for WoL that actually works.
+
 ## Verify NIC settings
 
 ```powershell
