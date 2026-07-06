@@ -21,6 +21,12 @@ The Ansible playbook cannot configure firmware. Manually enable in BIOS/UEFI:
   not from full power-off.
 - Enables Wake-on-Magic-Packet on every physical NIC that is up
   (`Set-NetAdapterPowerManagement -WakeOnMagicPacket Enabled`).
+- Flips Realtek's `WolShutdownLinkSpeed` from its default `10 Mbps First`
+  to `Not Speed Down`. The default renegotiates the link to 10Mbit
+  half-duplex on sleep — many 1G switches drop the port during
+  renegotiation and the magic packet never arrives. Symptom before this
+  was fixed on `shrike`: the last-wake source always reported `Power
+  Button` because the NIC never received a packet to log against.
 
 ## Verify NIC settings
 
@@ -65,6 +71,15 @@ wakeonlan AA:BB:CC:DD:EE:FF
 - **Doesn't wake at all**: NIC has no standby power. Check that the LAN LED
   on the NIC is still lit after shutdown. If not, BIOS WoL is off or the NIC
   doesn't support it.
+- **Doesn't wake even though the LAN LED stays lit**: your switch is
+  probably dropping the port when the NIC renegotiates to a lower speed on
+  sleep. The `common` role flips `WolShutdownLinkSpeed = Not Speed Down`
+  on Realtek NICs to keep the link at native speed through S3 — verify
+  with `Get-NetAdapterAdvancedProperty -RegistryKeyword WolShutdownLinkSpeed`.
+- **Windows reports "Power Button" for a real WoL wake**: on Realtek NICs
+  the wake is signalled by pulling PWRBTN# rather than PME#, so ACPI logs
+  it as the power button. Cross-check by pinging the host before/after
+  sending the packet.
 - **Wakes immediately after shutdown**: stray broadcast traffic is matching
   the wake pattern. Disable `WakeOnPattern` and rely on `WakeOnMagicPacket`
   only.

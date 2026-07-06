@@ -103,14 +103,28 @@
       }
 
 - name: Enable Wake-on-Magic-Packet on active NICs
+  # Also flips Realtek's WolShutdownLinkSpeed away from its "10 Mbps First"
+  # default. That default renegotiates the link to 10Mbit half-duplex on
+  # sleep to save power — some switches drop the port during renegotiation
+  # and the magic packet never lands. "Not Speed Down" (RegistryValue=2)
+  # keeps the link at native speed through S3. Non-Realtek NICs don't
+  # expose the property; the try/catch skips them silently.
   ansible.windows.win_powershell:
     script: |
       $changed = $false
       Get-NetAdapter -Physical | Where-Object Status -eq 'Up' | ForEach-Object {
+        $nic = $_
         try {
-          $pm = Get-NetAdapterPowerManagement -Name $_.Name -ErrorAction Stop
+          $pm = Get-NetAdapterPowerManagement -Name $nic.Name -ErrorAction Stop
           if ($pm.WakeOnMagicPacket -ne 'Enabled') {
-            Set-NetAdapterPowerManagement -Name $_.Name -WakeOnMagicPacket Enabled -ErrorAction Stop
+            Set-NetAdapterPowerManagement -Name $nic.Name -WakeOnMagicPacket Enabled -ErrorAction Stop
+            $changed = $true
+          }
+        } catch {}
+        try {
+          $prop = Get-NetAdapterAdvancedProperty -Name $nic.Name -RegistryKeyword WolShutdownLinkSpeed -ErrorAction Stop
+          if ($prop.RegistryValue -ne '2') {
+            Set-NetAdapterAdvancedProperty -Name $nic.Name -RegistryKeyword WolShutdownLinkSpeed -RegistryValue 2 -NoRestart -ErrorAction Stop
             $changed = $true
           }
         } catch {}
