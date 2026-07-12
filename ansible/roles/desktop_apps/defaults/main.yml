@@ -14,6 +14,7 @@ desktop_packages:
   - { id: 'Dropbox.Dropbox',                      source: 'winget' }
   - { id: 'Hawaii_Beach.TinyNvidiaUpdateChecker', source: 'winget' }
   - { id: 'ImageMagick.Q16',                      source: 'winget' }
+  - { id: 'Meta.Oculus',                          source: 'winget' }  # Meta Horizon Link (Quest PC VR runtime)
   - { id: 'Microsoft.Git',                        source: 'winget' }
   - { id: 'Mozilla.Firefox',                      source: 'winget' }
   - { id: 'Obsidian.Obsidian',                    source: 'winget' }
