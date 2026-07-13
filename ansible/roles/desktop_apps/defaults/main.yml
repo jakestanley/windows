@@ -21,6 +21,7 @@ desktop_packages:
   - { id: 'thebookisclosed.Vive',                 source: 'winget' }  # ViveTool — Windows feature flag toggler
   - { id: 'Valve.Steam',                          source: 'winget' }
   - { id: 'vim.vim',                              source: 'winget' }
+  - { id: 'Zagrios.BSManager',                    source: 'winget' }  # Beat Saber mod / version manager
   # Spotify.Spotify is deliberately excluded: its installer rejects any
   # elevated session context, and SSH-as-mail always carries an admin
   # token (mail is in Administrators + we use administrators_authorized_keys).
