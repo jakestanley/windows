@@ -70,6 +70,32 @@ bootstrap by design:
 Tracked here to keep them off the immediate critical path. Add as the need
 arises, not pre-emptively.
 
+### Put winget-installed CLI tools on the shell PATH
+
+`vim.vim` (and any future CLI tool installed via winget) lands under
+`%LOCALAPPDATA%\Microsoft\WinGet\Packages\<pkg>\...` and winget does not
+add that path to the user or machine PATH. Result: `vim` isn't callable
+from PowerShell/CMD after install. The fix is either (a) a `common`-role
+task that appends `%LOCALAPPDATA%\Microsoft\WinGet\Links` to the user
+PATH (winget publishes shim symlinks there when the package declares
+them, but coverage varies), or (b) per-tool absolute-path aliases in the
+user's PowerShell profile. Prefer (a) if the shim coverage turns out to
+include everything we care about.
+
+### Switch 1Password to the MSI winget package
+
+`AgileBits.1Password` is the consumer installer — silent install hangs
+indefinitely when 1Password is already running because the installer
+tries to close it via an interactive dialog that never renders under a
+non-interactive session. Symptom: `winget install` on shrike takes 0
+CPU, no network, no visible installer child process — the raw play just
+sits until we `Stop-Process` the winget PID by hand. `AgileBits.1Password.MSI`
+is the enterprise MSI variant and supports a real unattended install
+path (`msiexec /qn`). Swap the id in
+`ansible/roles/desktop_apps/defaults/main.yml`, verify the MSI package
+actually exists on winget's default source, and run the desktop-apps
+play with 1Password already running to confirm it no longer hangs.
+
 ### Reintroduce a small set of task-level tags
 
 Tags were stripped from all roles to remove visual noise and a tag-table
