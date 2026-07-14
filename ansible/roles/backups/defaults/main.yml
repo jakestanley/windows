@@ -1,0 +1,18 @@
+---
+# Beat Saber (via BSManager) → Dropbox backup.
+# Manual: run via the "Backup Beat Saber" shortcut on the Public
+# desktop. Mirrors BSManager's top-level content dirs into Dropbox,
+# skipping `versions\` (game binaries, restorable from BSManager).
+beat_saber_source: 'C:\Users\mail\BSManager'
+beat_saber_dest: 'D:\Dropbox\backups\BeatSaber'
+
+# Top-level subdirs to skip.
+beat_saber_exclude_dirs:
+  - versions
+
+beat_saber_log_path: 'C:\ProgramData\shrike\backup-beat-saber.log'
+backup_script_dir: 'C:\ProgramData\shrike'
+
+# Public Desktop is merged into every user's desktop view, so the
+# shortcut is visible to whichever account is signed in.
+backup_shortcut_path: 'C:\Users\Public\Desktop\Backup Beat Saber.lnk'

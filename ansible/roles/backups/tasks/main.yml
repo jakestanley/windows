@@ -1,0 +1,29 @@
+---
+- name: Ensure backup script staging directory exists
+  ansible.windows.win_file:
+    path: "{{ backup_script_dir }}"
+    state: directory
+
+- name: Ensure Beat Saber backup destination directory exists
+  ansible.windows.win_file:
+    path: "{{ beat_saber_dest }}"
+    state: directory
+
+- name: Deploy Beat Saber backup script
+  ansible.windows.win_copy:
+    src: backup-beat-saber.ps1
+    dest: "{{ backup_script_dir }}\\backup-beat-saber.ps1"
+
+- name: Create "Backup Beat Saber" desktop shortcut
+  community.windows.win_shortcut:
+    src: powershell.exe
+    dest: "{{ backup_shortcut_path }}"
+    arguments: >-
+      -NoProfile -ExecutionPolicy Bypass
+      -File "{{ backup_script_dir }}\backup-beat-saber.ps1"
+      -Source "{{ beat_saber_source }}"
+      -Dest "{{ beat_saber_dest }}"
+      -ExcludeDirs {{ beat_saber_exclude_dirs | join(',') }}
+      -LogPath "{{ beat_saber_log_path }}"
+    directory: "{{ backup_script_dir }}"
+    description: Mirror BSManager user content to Dropbox via robocopy
