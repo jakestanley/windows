@@ -20,6 +20,7 @@ desktop_packages:
   - { id: 'Obsidian.Obsidian',                    source: 'winget' }
   - { id: 'thebookisclosed.Vive',                 source: 'winget' }  # ViveTool — Windows feature flag toggler
   - { id: 'Valve.Steam',                          source: 'winget' }
+  - { id: 'VideoLAN.VLC',                         source: 'winget' }
   - { id: 'vim.vim',                              source: 'winget' }
   - { id: 'Zagrios.BSManager',                    source: 'winget' }  # Beat Saber mod / version manager
   # Spotify.Spotify is deliberately excluded: its installer rejects any
