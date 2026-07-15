@@ -19,14 +19,23 @@ The Ansible playbook cannot configure firmware. Manually enable in BIOS/UEFI:
 - Disables Fast Startup (`HiberbootEnabled = 0`). Without this, Windows
   "shutdown" is actually hybrid hibernate and WoL only works from sleep,
   not from full power-off.
-- Enables Wake-on-Magic-Packet on every physical NIC that is up
-  (`Set-NetAdapterPowerManagement -WakeOnMagicPacket Enabled`).
+- Enables Wake-on-Magic-Packet and *disables* Wake-on-Pattern on every
+  physical NIC that is up. Pattern-match wake fires on stray traffic
+  (ARP-for-me, mDNS, broadcast chatter) which triggered spurious wakes
+  from S3 on `shrike`; magic-packet-only means only deliberate WoL
+  packets wake the box.
 - Flips Realtek's `WolShutdownLinkSpeed` from its default `10 Mbps First`
   to `Not Speed Down`. The default renegotiates the link to 10Mbit
   half-duplex on sleep — many 1G switches drop the port during
   renegotiation and the magic packet never arrives. Symptom before this
   was fixed on `shrike`: the last-wake source always reported `Power
   Button` because the NIC never received a packet to log against.
+- Strips wake capability from noisy USB host controllers via
+  `powercfg /devicedisablewake`. USB xHCI wake propagates spontaneous
+  device activity (mouse jitter, Oculus Link cable polling, wireless
+  dongles) into a full platform wake. HID keyboard/mouse entries keep
+  their individual wake capability so key presses at the desk still
+  work — see `wake_disable_devices` in `roles/common/defaults/main.yml`.
 
 ## Why the link-speed setting matters
 
@@ -63,7 +72,8 @@ Get-NetAdapter -Physical | ForEach-Object {
 }
 ```
 
-Both `WakeOnMagicPacket` and `WakeOnPattern` should report `Enabled`.
+`WakeOnMagicPacket` should be `Enabled`, `WakeOnPattern` should be
+`Disabled` (see the pattern-wake note above).
 
 ## Find the MAC
 
@@ -105,6 +115,14 @@ wakeonlan AA:BB:CC:DD:EE:FF
   the wake is signalled by pulling PWRBTN# rather than PME#, so ACPI logs
   it as the power button. Cross-check by pinging the host before/after
   sending the packet.
-- **Wakes immediately after shutdown**: stray broadcast traffic is matching
-  the wake pattern. Disable `WakeOnPattern` and rely on `WakeOnMagicPacket`
-  only.
+- **Wakes immediately after shutdown or from S3 without a magic packet**:
+  either `WakeOnPattern` slipped back to `Enabled` (stray broadcast /
+  ARP traffic matches), or a wake-armed device is signalling. Check
+  `Get-NetAdapterPowerManagement` and `powercfg /devicequery wake_armed`
+  respectively; the `common` role keeps `WakeOnPattern=Disabled` and
+  removes known-noisy USB host controllers from the wake_armed list.
+- **Persistent spurious wakes from S3**: pull `Get-WinEvent
+  -FilterHashtable @{LogName='System'; Id=1; ProviderName='Microsoft-Windows-Power-Troubleshooter'}`
+  for the last few days. If a device name keeps appearing as the wake
+  source, add its exact `powercfg /devicequery wake_armed` name to
+  `wake_disable_devices` in `roles/common/defaults/main.yml`.

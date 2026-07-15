@@ -4,3 +4,11 @@ sol_install_dir: C:\Program Files\SleepOnLan
 sol_listen_port: 9
 sol_http_port: 8009
 sol_download_url: "https://github.com/SR-G/sleep-on-lan/releases/download/{{ sol_version }}/SleepOnLAN-{{ sol_version }}.zip"
+
+# Devices to strip from the wake_armed list. Names must match exactly
+# what `powercfg /devicequery wake_armed` prints. USB root/host
+# controllers are the usual offenders — any attached device
+# (mouse jiggle, keyboard key repeat, VR headset polling) can signal
+# a spurious wake through them.
+wake_disable_devices:
+  - 'Intel(R) USB 3.0 eXtensible Host Controller - 1.0 (Microsoft)'

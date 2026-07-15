@@ -103,12 +103,16 @@
       }
 
 - name: Enable Wake-on-Magic-Packet on active NICs
-  # Also flips Realtek's WolShutdownLinkSpeed away from its "10 Mbps First"
-  # default. That default renegotiates the link to 10Mbit half-duplex on
-  # sleep to save power — some switches drop the port during renegotiation
-  # and the magic packet never lands. "Not Speed Down" (RegistryValue=2)
-  # keeps the link at native speed through S3. Non-Realtek NICs don't
-  # expose the property; the try/catch skips them silently.
+  # Enables magic-packet wake, disables pattern-match wake, and flips
+  # Realtek's WolShutdownLinkSpeed away from "10 Mbps First".
+  # * Pattern wake fires on stray traffic (ARP for me, mDNS, broadcast
+  #   chatter) which caused spurious wakes from S3 — magic packet only
+  #   for deliberate WoL.
+  # * WolShutdownLinkSpeed default renegotiates to 10Mbit half-duplex on
+  #   sleep; many 1G switches drop the port during renegotiation and
+  #   magic packets never arrive. "Not Speed Down" (RegistryValue=2)
+  #   keeps the link at native speed through S3.
+  # Non-Realtek NICs don't expose WolShutdownLinkSpeed; try/catch skips.
   ansible.windows.win_powershell:
     script: |
       $changed = $false
@@ -116,8 +120,11 @@
         $nic = $_
         try {
           $pm = Get-NetAdapterPowerManagement -Name $nic.Name -ErrorAction Stop
-          if ($pm.WakeOnMagicPacket -ne 'Enabled') {
-            Set-NetAdapterPowerManagement -Name $nic.Name -WakeOnMagicPacket Enabled -ErrorAction Stop
+          $args = @{}
+          if ($pm.WakeOnMagicPacket -ne 'Enabled')  { $args.WakeOnMagicPacket = 'Enabled' }
+          if ($pm.WakeOnPattern     -ne 'Disabled') { $args.WakeOnPattern     = 'Disabled' }
+          if ($args.Count -gt 0) {
+            Set-NetAdapterPowerManagement -Name $nic.Name @args -ErrorAction Stop
             $changed = $true
           }
         } catch {}
@@ -130,6 +137,33 @@
         } catch {}
       }
       $Ansible.Changed = $changed
+
+- name: Disable wake capability on noisy devices
+  # USB host controllers wake the platform when any attached device
+  # signals wake — spontaneous mouse jitter, keyboard key repeat, Oculus
+  # Link cable polling, wireless controller dongles. Individual HID
+  # entries stay wake-armed so pressing a key at the desk still works.
+  ansible.windows.win_powershell:
+    script: |
+      $armed  = @(powercfg /devicequery wake_armed)
+      $wanted = @(
+      {% for d in wake_disable_devices %}
+        '{{ d }}'{{ ',' if not loop.last else '' }}
+      {% endfor %}
+      )
+      $disabled = @()
+      foreach ($d in $wanted) {
+        if ($armed -contains $d) {
+          powercfg /devicedisablewake $d | Out-Null
+          $disabled += $d
+        }
+      }
+      if ($disabled.Count -gt 0) {
+        $Ansible.Changed = $true
+        $Ansible.Result  = @{ disabled = $disabled }
+      } else {
+        $Ansible.Changed = $false
+      }
 
 - name: Install Sleep-on-LAN
   ansible.builtin.import_tasks: sleep-on-lan.yml
