@@ -171,6 +171,31 @@
 - name: Trust Stanley Homelab Root CA
   ansible.builtin.import_tasks: trust-ca.yml
 
+- name: Ensure declared directories are on the machine PATH
+  ansible.windows.win_powershell:
+    script: |
+      $wanted = @(
+      {% for dir in machine_path_additions %}
+        '{{ dir }}'{{ ',' if not loop.last else '' }}
+      {% endfor %}
+      )
+      $current = [Environment]::GetEnvironmentVariable('PATH', 'Machine')
+      $entries = @($current -split ';' | Where-Object { $_ -ne '' })
+      $added = @()
+      foreach ($w in $wanted) {
+        if ($entries -notcontains $w) {
+          $entries += $w
+          $added += $w
+        }
+      }
+      if ($added.Count -gt 0) {
+        [Environment]::SetEnvironmentVariable('PATH', ($entries -join ';'), 'Machine')
+        $Ansible.Changed = $true
+        $Ansible.Result  = @{ added = $added }
+      } else {
+        $Ansible.Changed = $false
+      }
+
 - name: Disable Bing search in Start menu
   ansible.windows.win_regedit:
     path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Search

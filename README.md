@@ -70,18 +70,6 @@ bootstrap by design:
 Tracked here to keep them off the immediate critical path. Add as the need
 arises, not pre-emptively.
 
-### Put winget-installed CLI tools on the shell PATH
-
-`vim.vim` (and any future CLI tool installed via winget) lands under
-`%LOCALAPPDATA%\Microsoft\WinGet\Packages\<pkg>\...` and winget does not
-add that path to the user or machine PATH. Result: `vim` isn't callable
-from PowerShell/CMD after install. The fix is either (a) a `common`-role
-task that appends `%LOCALAPPDATA%\Microsoft\WinGet\Links` to the user
-PATH (winget publishes shim symlinks there when the package declares
-them, but coverage varies), or (b) per-tool absolute-path aliases in the
-user's PowerShell profile. Prefer (a) if the shim coverage turns out to
-include everything we care about.
-
 ### Switch 1Password to the MSI winget package
 
 `AgileBits.1Password` is the consumer installer — silent install hangs

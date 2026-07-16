@@ -5,6 +5,14 @@ sol_listen_port: 9
 sol_http_port: 8009
 sol_download_url: "https://github.com/SR-G/sleep-on-lan/releases/download/{{ sol_version }}/SleepOnLAN-{{ sol_version }}.zip"
 
+# Directories to ensure are present on the machine-scope PATH. Winget
+# packages that install to fixed dirs (rather than publishing shims
+# into %LOCALAPPDATA%\Microsoft\WinGet\Links) need explicit entries
+# here so their binaries are callable from every shell — including
+# SSH sessions inherited by the `mail` user.
+machine_path_additions:
+  - 'C:\Program Files\Vim'
+
 # Devices to strip from the wake_armed list. Names must match exactly
 # what `powercfg /devicequery wake_armed` prints. USB root/host
 # controllers are the usual offenders — any attached device
